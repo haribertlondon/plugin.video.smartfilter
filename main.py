@@ -90,12 +90,12 @@ def get_movies(params):
     
     xbmc.log("List videos: "+str(params),level=xbmc.LOGWARNING)
     
-    if 'Series' in params['category'].split(','):
+    if 'Series' in params['category'].split(','):                                                          
         method = 'tvshows'
-        properties = '["title", "thumbnail", "file", "genre", "rating", "year", "playcount", "lastplayed", "runtime", "studio" ]'
+        properties = '["title", "thumbnail", "file", "genre", "rating", "year", "playcount", "lastplayed", "runtime", "imdbnumber", "plot", "studio" ]'    #"tagline",    "trailer",
     else:
         method = 'movies'
-        properties = '["title", "thumbnail", "file", "genre", "rating", "year", "playcount", "lastplayed", "runtime", "country" ]' 
+        properties = '["title", "thumbnail", "file", "genre", "rating", "year", "playcount", "lastplayed", "runtime", "imdbnumber", "plot", "country", "tagline", "trailer", "streamdetails"]' 
     
     for item in params['category'].split(','):
         if 'Series' == item: 
@@ -154,7 +154,7 @@ def get_movies(params):
     #request = '{"jsonrpc": "2.0", "params": {"sort": {"order": "ascending", "method": "title"}, "filter": {"operator": "contains", "field": "title", "value": "Star Wars"}, "properties": ["title", "art", "file"]}, "method": "VideoLibrary.GetMovies", "id": "libMovies"}'    
     return getJSON(request, method)
     
-def getInfo(video):
+def getInfoStr(video):
     result = ''
     for k, v in video.items():        
         if 'movieid' != k and 'thumbnail' != k and 'label' != k:
@@ -191,6 +191,26 @@ def getInfo(video):
             result = result.rstrip(',') + '\n'   
     return result.rstrip('\n')
 
+
+def cleanStr(lst):
+    result = ''
+    
+    if isinstance(lst, list):
+        vlist = lst
+    else:
+        vlist = [lst]
+    
+    for item in vlist:
+        try: 
+            temp = str(item)
+        except:
+            temp = item.encode('utf-8')
+        
+        result = result + temp + ','
+        
+    return result.rstrip(',')    
+        
+
 def list_videos(params):
     # Get the list of videos in the category.
     videos = get_movies(params)#get_videos(category)    
@@ -206,17 +226,42 @@ def list_videos(params):
             thumbnailImage=video['thumbnail']
         except:
             thumbnailImage = ''
+            
         list_item = xbmcgui.ListItem(label=video['label'], label2=str(video['rating']))
-        list_item.setArt( {'thumb': thumbnailImage} )
-        list_item.setProperty('fanart_image', thumbnailImage)
+        
                
-
-              
-        list_item.setInfo( type="video", infoLabels={"Title": video['label'] , "label2": str(round(video['rating'],1)) , "genre":video['genre'], "playcount":video['playcount'], 'rating': video['rating'],  'plot': getInfo(video)} )
-        #list_item.setInfo('video', {'title': video['label'], 'genre': 'Comedy', ''})
-        #list_item.setInfo('video', video)        
+        list_item.setInfo( type="video", infoLabels={
+            "Title": video['label'] , 
+            "Year": video['year'],  
+            "Genre": cleanStr(video.get('genre','')), 
+            "Country": cleanStr(video.get('country', "")),
+            'Plot': cleanStr(video.get('plot')), #getInfoStr(video),
+            "Tagline": cleanStr(video.get('tagline')),
+            'Rating': video['rating'],  
+            "Playcount":video['playcount'], 
+            "Trailer": video.get('trailer'),            
+            "label2": str(round(video['rating'],1)), 
+            "mediatype": "movie" 
+            } )
+        
+        list_item.setProperty('fanart_image', thumbnailImage)        
+        list_item.setProperty("totaltime", str(video['runtime']))                
+        list_item.setProperty("dbid", str(video.get('movieid')))
+        list_item.setProperty("imdbnumber", str(video.get('imdbnumber')))    
         list_item.setProperty('IsPlayable', 'true')
         list_item.setProperty('IsFolder', 'false')
+        
+        list_item.setArt( {'thumb': thumbnailImage, 'poster': thumbnailImage, 'banner': thumbnailImage, 'fanart': thumbnailImage, 'icon': thumbnailImage} )                    
+        list_item.setThumbnailImage(thumbnailImage)
+        list_item.setIconImage(thumbnailImage)                
+                
+       
+        try:        
+            list_item.addStreamInfo("video", video['streamdetails']['video'][0] )
+        except:
+            list_item.addStreamInfo("video", {'duration': video['runtime']} )      
+                           
+    
                 
         url = '{0}?action=play&video={1}'.format(__url__, video.get('file','').encode('utf-8'))
         # Add the list item to a virtual Kodi folder.
