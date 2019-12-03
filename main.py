@@ -43,8 +43,22 @@ def list_categories(params):
     # Iterate through categories
     for category in categories:
         # Create a list item with a text label and a thumbnail image.
-        if (not "category" in params) or (category not in params['category']) or (category == categories[0]): 
-            list_item = xbmcgui.ListItem(label=category)#, thumbnailImage=VIDEOS[category][0]['thumb'])
+        if (not "category" in params) or (category not in params['category'] ) or (category == categories[0]):
+            
+            #debug by mass json requests
+            #if category == categories[0] :#or not "category" in params:
+            #    lst = []
+            #else:
+            #    temp = params.copy()
+            #    if 'category' in temp:
+            #        temp['category'] = temp['category'] + ',' + category
+            #    else:
+            #        temp['category']  = category
+            #        
+            #    lst = get_movies(temp)           
+                
+             
+            list_item = xbmcgui.ListItem(label=category)# + ": #" + str(len(lst)))#
                  
             list_item.setInfo('video', {'title': category, 'genre': category})       
             
@@ -92,10 +106,10 @@ def get_movies(params):
     
     if 'Series' in params['category'].split(','):                                                          
         method = 'tvshows'
-        properties = '["title", "thumbnail", "file", "genre", "rating", "year", "playcount", "lastplayed", "runtime", "imdbnumber", "plot", "studio" ]'    #"tagline",    "trailer",
+        properties = '["title", "thumbnail", "file", "genre", "rating", "year", "playcount", "lastplayed", "dateadded", "runtime", "imdbnumber", "plot", "studio" ]'    #"tagline",    "trailer",
     else:
         method = 'movies'
-        properties = '["title", "thumbnail", "file", "genre", "rating", "year", "playcount", "lastplayed", "runtime", "imdbnumber", "plot", "country", "tagline", "trailer", "streamdetails"]' 
+        properties = '["title", "thumbnail", "file", "genre", "rating", "year", "playcount", "lastplayed", "dateadded", "runtime", "imdbnumber", "plot", "country", "tagline", "trailer", "streamdetails"]' 
     
     for item in params['category'].split(','):
         if 'Series' == item: 
@@ -107,8 +121,8 @@ def get_movies(params):
         elif item == 'NoDrama':
            filter.append('{"field": "genre", "operator": "doesnotcontain", "value": "Drama"}') #ok 
         elif item == 'Comedy':
-            if method == 'series':            
-                filter.append('{"field": "genre", "operator": "contains", "value": "Comedy"}') #ok
+            if method == 'tvshows':            
+                filter.append('{"field": "genre", "operator": "contains", "value": "Com"}') #ok
             else:
                 filter.append('{"field": "genre", "operator": "contains", "value": "Kom"}') #ok
         elif item == 'Action':
@@ -116,9 +130,15 @@ def get_movies(params):
         elif item == 'Horror':
            filter.append('{"field": "genre", "operator": "contains", "value": "Horror"}') #ok
         elif item == 'Short':
-           filter.append('{"field": "time", "operator": "lessthan", "value": "01:15:00"}') #ok
+            if method == 'tvshows': 
+                filter.append('{"field": "numepisodes", "operator": "lessthan", "value": "20"}') 
+            else:
+                filter.append('{"field": "time", "operator": "lessthan", "value": "01:15:00"}') #ok
         elif item == 'Long':
-           filter.append('{"field": "time", "operator": "greaterthan", "value": "01:45:00"}') #OK
+            if method == 'tvshows': 
+                filter.append('{"field": "numepisodes", "operator": "greaterthan", "value": "20"}') 
+            else:
+                filter.append('{"field": "time", "operator": "greaterthan", "value": "01:45:00"}') #OK
         elif item == 'Old':
            filter.append('{"field": "year", "operator": "lessthan", "value": "1990"}') #ok
         elif item == 'New':
@@ -128,14 +148,20 @@ def get_movies(params):
         elif item == 'Bad':
            filter.append('{"field": "rating", "operator": "lessthan", "value": "5.6"}') #ok
         elif item == 'US':
-           filter.append('{"field": "country", "operator": "contains", "value": "United States"}') #ok
-        elif item == 'NoUS':
-           filter.append('{"field": "country", "operator": "doesnotcontain", "value": "United States"}') #ok
-        elif item == 'Northern':
-            if method != 'tvshows': 
-                filter.append('{"field": "country", "operator": "contains", "value": ["Sweden", "Norway", "Denmark", "Finland", "Iceland"] } ')
+            if method == 'tvshows': 
+                filter.append('{"field": "studio", "operator": "contains", "value": '+ json.dumps(studio_us)+' } ')  #OK
             else:
-                filter.append('{"field": "studio", "operator": "doesnotcontain", "value": '+ json.dumps(studio_nonorthern)+' } ')
+                filter.append('{"field": "country", "operator": "contains", "value": "United States"}') #OK
+        elif item == 'NoUS':
+            if method == 'tvshows': 
+                filter.append('{"field": "studio", "operator": "doesnotcontain", "value": '+ json.dumps(studio_us)+' } ') #OK
+            else:
+                filter.append('{"field": "country", "operator": "doesnotcontain", "value": "United States"}') #ok
+        elif item == 'Northern':
+            if method == 'tvshows': 
+                filter.append('{"field": "studio", "operator": "doesnotcontain", "value": '+ json.dumps(studio_nonorthern)+' } ') #OK
+            else:
+                filter.append('{"field": "country", "operator": "contains", "value": ["Sweden", "Norway", "Denmark", "Finland", "Iceland"] } ') #OK
         else: #'Show'
             raise Exception("Wrong category: "+str(item))
         
@@ -231,16 +257,17 @@ def list_videos(params):
         
                
         list_item.setInfo( type="video", infoLabels={
-            "Title": video['label'] , 
-            "Year": video['year'],  
-            "Genre": cleanStr(video.get('genre','')), 
-            "Country": cleanStr(video.get('country', "")),
-            'Plot': cleanStr(video.get('plot')), #getInfoStr(video),
-            "Tagline": cleanStr(video.get('tagline')),
-            'Rating': video['rating'],  
-            "Playcount":video['playcount'], 
-            "Trailer": video.get('trailer'),            
+            "title": video['label'] , 
+            "year": video['year'],  
+            "genre": cleanStr(video.get('genre','')), 
+            "country": cleanStr(video.get('country', "")),
+            'plot': cleanStr(video.get('plot')), #getInfoStr(video),
+            "tagline": cleanStr(video.get('tagline')),
+            'rating': video['rating'],  
+            "playcount":video['playcount'], 
+            "trailer": video.get('trailer'),            
             "label2": str(round(video['rating'],1)), 
+            "dateadded": video.get('dateadded',''),
             "mediatype": "movie" 
             } )
         
@@ -291,7 +318,11 @@ def router(paramstring):
         
     xbmcplugin.addSortMethod(__handle__, xbmcplugin.SORT_METHOD_VIDEO_RATING)    
     xbmcplugin.addSortMethod(__handle__, xbmcplugin.SORT_METHOD_LABEL)
-    xbmcplugin.addSortMethod(__handle__, xbmcplugin.SORT_METHOD_DURATION )
+    xbmcplugin.addSortMethod(__handle__, xbmcplugin.SORT_METHOD_DURATION )        
+    xbmcplugin.addSortMethod(__handle__, xbmcplugin.SORT_METHOD_DATEADDED )
+    xbmcplugin.addSortMethod(__handle__, xbmcplugin.SORT_METHOD_GENRE )
+    xbmcplugin.addSortMethod(__handle__, xbmcplugin.SORT_METHOD_PLAYCOUNT )
+
     xbmc.executebuiltin("Container.SortDirection(%s)" % ("Descending"))
 
     params = dict(parse_qsl(paramstring))
