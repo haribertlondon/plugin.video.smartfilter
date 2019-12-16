@@ -17,7 +17,7 @@ __addon__ = xbmcaddon.Addon()
 __addonname__ = __addon__.getAddonInfo('name')
 __icon__ = __addon__.getAddonInfo('icon')
 
-categories = ['-> List', 'Series', 'Unwatched', 'NoDrama', 'Comedy', 'Action', 'Short', 'Long',  'Old', 'New', 'Good', 'US', 'NoUS', 'Northern', "Horror", "Bad" ]
+categories = ['-> List', 'Series', 'Unwatched', 'NoDrama', 'Comedy', 'Action', 'Short', 'Long',  'Old', 'New', 'Good', 'US', 'NoUS', 'Northern', "Horror", "Bad", "German", "Crime" ]
 
 studio_us = ["Amazon" "Syfy", "FOX" "The CW", "TBS", "SundanceTV", "Showtime", "Playhouse Disney", "Peacock", "FXX", "CBS", "AMC", "ABC (AU)", "ABC (US)", "Comedy Central (US)", "FOX (US)", "HBO", "History", "Netflix", "National Geographic (US)", "FX (US)", "SciFi", "TNT (US)", "Disney Channel", "Disney XD", "USA Network", "Science Channel", "NBC", "Adult Swim"]
 studio_br = [ "ITV", "ITV1", "ITV2", "E4", "Channel 4", "BBC", "BBC America", "BBC One", "BBC Three", "BBC Two", "Acorn TV"]
@@ -127,6 +127,11 @@ def get_movies(params):
                 filter.append('{"field": "genre", "operator": "contains", "value": "Kom"}') #ok
         elif item == 'Action':
            filter.append('{"field": "genre", "operator": "contains", "value": "Action"}') #ok
+        elif item == 'Crime':
+            if method == 'tvshows':            
+                filter.append('{"field": "genre", "operator": "contains", "value": "Crime"}') 
+            else:
+                filter.append('{"field": "genre", "operator": "contains", "value": "Krimi"}') 
         elif item == 'Horror':
            filter.append('{"field": "genre", "operator": "contains", "value": "Horror"}') #ok
         elif item == 'Short':
@@ -157,6 +162,11 @@ def get_movies(params):
                 filter.append('{"field": "studio", "operator": "doesnotcontain", "value": '+ json.dumps(studio_us)+' } ') #OK
             else:
                 filter.append('{"field": "country", "operator": "doesnotcontain", "value": "United States"}') #ok
+        elif item == "German":
+            if method == 'tvshows': 
+                filter.append('{"field": "studio", "operator": "doesnotcontain", "value": '+ json.dumps(studio_ger)+' } ') 
+            else:
+                filter.append('{"field": "country", "operator": "contains", "value": "Germany" } ') 
         elif item == 'Northern':
             if method == 'tvshows': 
                 filter.append('{"field": "studio", "operator": "doesnotcontain", "value": '+ json.dumps(studio_nonorthern)+' } ') #OK
