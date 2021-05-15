@@ -10,12 +10,15 @@ import urllib,urllib2
 import time
 import os
 import datetime
+import csv
+import bisect
 
 __url__ = sys.argv[0]
 __handle__ = int(sys.argv[1])
 __addon__ = xbmcaddon.Addon()
 __addonname__ = __addon__.getAddonInfo('name')
 __icon__ = __addon__.getAddonInfo('icon')
+__path__ = __addon__.getAddonInfo('path').decode('utf-8')
 
 categories = ['-> List', "__SimilarTo__tt1375666", 'Series', 'Unwatched', 'NoDrama', 'Comedy', 'Action', 'Short', 'Long',  'Old', 'New', 'Good', 'US', 'NoUS', 'Northern', "Horror", "Bad", "German", "Crime" ]
 
@@ -247,25 +250,51 @@ def cleanStr(lst):
         
     return result.rstrip(',')    
 
+def loadSimilarVideoDb():
+    with open(__path__+'/imdb_links.csv') as csvfile:
+        imdbLinks = list(csv.reader(csvfile, delimiter=',',))
+            
+    with open(__path__+'/imdb_sim.csv') as csvfile:
+        imdbSim = list(csv.reader(csvfile, delimiter=',',))
+        
+    return (imdbLinks, imdbSim)
+  
+    
+
 def filterSimilarVideos(params, videos):
+    
+    (imdbLinks, imdbSim) = loadSimilarVideoDb()
     
     for item in params['category'].split(','):
         if '__SimilarTo__' in item:
-            imdb = item.replace("__SimilarTo__", "")
+            imdb = item.replace("__SimilarTo__", "").replace("tt","")
             tmdb = "0"
             xbmc.log("Found Similar Filter: SimilarTo:"+str(imdb)+". Full: "+str(params) ,level=xbmc.LOGWARNING)
+                        
+            idx = [item for item in imdbSim if item[0] == imdb]
+            xbmc.log("Found Similar idx "+str(idx) ,level=xbmc.LOGWARNING)
+            
+            if idx is not None and idx<len(imdbSim):
+                imdbs = imdbSim[idx]
+            else:
+                xbmc.log("Nothing found in similar list for imdb-id: "+str(imdb) ,level=xbmc.LOGWARNING)
+                return []
+            
+            xbmc.log("Found similar idxs "+str(imdbs) ,level=xbmc.LOGWARNING)
+            
+            tmdbs = []
             
             newvideos = []
             for video in videos:
                 if 'imdb' in video['uniqueid']:
-                    if  video['uniqueid']['imdb'] == imdb:
+                    if  video['uniqueid']['imdb'] in imdbs:
                         newvideos.append(video)
                     else:
                         #do not add
                         pass
                 elif 'tmdb' in video['uniqueid']:
                     #xbmc.log("No imdb found but tmdb: "+str(video) ,level=xbmc.LOGWARNING)
-                    if  video['uniqueid']['tmdb'] == tmdb:
+                    if  video['uniqueid']['tmdb'] in tmdbs:
                         newvideos.append(video)
                 else:
                     #no id found that can be used
@@ -356,7 +385,10 @@ def play_video(path):
 #    xbmc.executebuiltin('Notification('+title.replace(",","_")+','+s.replace(",","_")+',5000,'+__icon__+')')    
 
 def router(paramstring):
-
+    
+    
+    
+    xbmc.log("Started smart filter:  "+str(__path__),level=xbmc.LOGWARNING)
     xbmcplugin.setContent(__handle__, 'movies')    
         
     xbmcplugin.addSortMethod(__handle__, xbmcplugin.SORT_METHOD_VIDEO_RATING)    
@@ -370,7 +402,9 @@ def router(paramstring):
 
     params = dict(parse_qsl(paramstring))
     
+    
     xbmc.log("Router:  "+str(paramstring),level=xbmc.LOGWARNING)    
+    
     
     if 'action' not in params:
         params['action']='category'
