@@ -17,7 +17,7 @@ __addon__ = xbmcaddon.Addon()
 __addonname__ = __addon__.getAddonInfo('name')
 __icon__ = __addon__.getAddonInfo('icon')
 
-categories = ['-> List', 'Series', 'Unwatched', 'NoDrama', 'Comedy', 'Action', 'Short', 'Long',  'Old', 'New', 'Good', 'US', 'NoUS', 'Northern', "Horror", "Bad", "German", "Crime" ]
+categories = ['-> List', "__SimilarTo__tt1375666", 'Series', 'Unwatched', 'NoDrama', 'Comedy', 'Action', 'Short', 'Long',  'Old', 'New', 'Good', 'US', 'NoUS', 'Northern', "Horror", "Bad", "German", "Crime" ]
 
 studio_us = ["Amazon" "Syfy", "FOX" "The CW", "TBS", "SundanceTV", "Showtime", "Playhouse Disney", "Peacock", "FXX", "CBS", "AMC", "ABC (AU)", "ABC (US)", "Comedy Central (US)", "FOX (US)", "HBO", "History", "Netflix", "National Geographic (US)", "FX (US)", "SciFi", "TNT (US)", "Disney Channel", "Disney XD", "USA Network", "Science Channel", "NBC", "Adult Swim"]
 studio_br = [ "ITV", "ITV1", "ITV2", "E4", "Channel 4", "BBC", "BBC America", "BBC One", "BBC Three", "BBC Two", "Acorn TV"]
@@ -98,18 +98,16 @@ def getJSON(url, select):
 
 def get_movies(params): 
         
-        
-    url = ''
     filter = []# '"operator": "contains", "field": "title", "value": "Star Wars"'
     
     xbmc.log("List videos: "+str(params),level=xbmc.LOGWARNING)
     
     if 'Series' in params['category'].split(','):                                                          
         method = 'tvshows'
-        properties = '["title", "thumbnail", "file", "genre", "rating", "year", "playcount", "lastplayed", "dateadded", "runtime", "imdbnumber", "plot", "studio" ]'    #"tagline",    "trailer",
+        properties = '["title", "thumbnail", "file", "genre", "rating", "year", "playcount", "lastplayed", "dateadded", "runtime", "imdbnumber", "uniqueid", "plot", "studio" ]'    #"tagline",    "trailer",
     else:
         method = 'movies'
-        properties = '["title", "thumbnail", "file", "genre", "rating", "year", "playcount", "lastplayed", "dateadded", "runtime", "imdbnumber", "plot", "country", "tagline", "trailer", "streamdetails"]' 
+        properties = '["title", "thumbnail", "file", "genre", "rating", "year", "playcount", "lastplayed", "dateadded", "runtime", "imdbnumber", "uniqueid", "plot", "country", "tagline", "trailer", "streamdetails"]' 
     
     for item in params['category'].split(','):
         if 'Series' == item: 
@@ -119,21 +117,21 @@ def get_movies(params):
         elif item == 'Unwatched':
             filter.append('{"field": "playcount", "operator": "is", "value": "0"}') #ok       
         elif item == 'NoDrama':
-           filter.append('{"field": "genre", "operator": "doesnotcontain", "value": "Drama"}') #ok 
+            filter.append('{"field": "genre", "operator": "doesnotcontain", "value": "Drama"}') #ok 
         elif item == 'Comedy':
             if method == 'tvshows':            
                 filter.append('{"field": "genre", "operator": "contains", "value": "Com"}') #ok
             else:
                 filter.append('{"field": "genre", "operator": "contains", "value": "Kom"}') #ok
         elif item == 'Action':
-           filter.append('{"field": "genre", "operator": "contains", "value": "Action"}') #ok
+            filter.append('{"field": "genre", "operator": "contains", "value": "Action"}') #ok
         elif item == 'Crime':
             if method == 'tvshows':            
                 filter.append('{"field": "genre", "operator": "contains", "value": "Crime"}') 
             else:
                 filter.append('{"field": "genre", "operator": "contains", "value": "Krimi"}') 
         elif item == 'Horror':
-           filter.append('{"field": "genre", "operator": "contains", "value": "Horror"}') #ok
+            filter.append('{"field": "genre", "operator": "contains", "value": "Horror"}') #ok
         elif item == 'Short':
             if method == 'tvshows': 
                 filter.append('{"field": "numepisodes", "operator": "lessthan", "value": "20"}') 
@@ -145,13 +143,13 @@ def get_movies(params):
             else:
                 filter.append('{"field": "time", "operator": "greaterthan", "value": "01:45:00"}') #OK
         elif item == 'Old':
-           filter.append('{"field": "year", "operator": "lessthan", "value": "1990"}') #ok
+            filter.append('{"field": "year", "operator": "lessthan", "value": "1990"}') #ok
         elif item == 'New':
-           filter.append('{"field": "year", "operator": "greaterthan", "value": "2010"}') #ok
+            filter.append('{"field": "year", "operator": "greaterthan", "value": "2010"}') #ok
         elif item == 'Good':
-           filter.append('{"field": "rating", "operator": "greaterthan", "value": "7"}') #ok
+            filter.append('{"field": "rating", "operator": "greaterthan", "value": "7"}') #ok
         elif item == 'Bad':
-           filter.append('{"field": "rating", "operator": "lessthan", "value": "5.6"}') #ok
+            filter.append('{"field": "rating", "operator": "lessthan", "value": "5.6"}') #ok
         elif item == 'US':
             if method == 'tvshows': 
                 filter.append('{"field": "studio", "operator": "contains", "value": '+ json.dumps(studio_us)+' } ')  #OK
@@ -172,6 +170,9 @@ def get_movies(params):
                 filter.append('{"field": "studio", "operator": "doesnotcontain", "value": '+ json.dumps(studio_nonorthern)+' } ') #OK
             else:
                 filter.append('{"field": "country", "operator": "contains", "value": ["Sweden", "Norway", "Denmark", "Finland", "Iceland"] } ') #OK
+        elif '__SimilarTo__' in item:
+            #do nothing, will be handled afterwards
+            pass  
         else: #'Show'
             raise Exception("Wrong category: "+str(item))
         
@@ -245,19 +246,51 @@ def cleanStr(lst):
         result = result + temp + ','
         
     return result.rstrip(',')    
+
+def filterSimilarVideos(params, videos):
+    
+    for item in params['category'].split(','):
+        if '__SimilarTo__' in item:
+            imdb = item.replace("__SimilarTo__", "")
+            tmdb = "0"
+            xbmc.log("Found Similar Filter: SimilarTo:"+str(imdb)+". Full: "+str(params) ,level=xbmc.LOGWARNING)
+            
+            newvideos = []
+            for video in videos:
+                if 'imdb' in video['uniqueid']:
+                    if  video['uniqueid']['imdb'] == imdb:
+                        newvideos.append(video)
+                    else:
+                        #do not add
+                        pass
+                elif 'tmdb' in video['uniqueid']:
+                    #xbmc.log("No imdb found but tmdb: "+str(video) ,level=xbmc.LOGWARNING)
+                    if  video['uniqueid']['tmdb'] == tmdb:
+                        newvideos.append(video)
+                else:
+                    #no id found that can be used
+                    xbmc.log("No imdb nor tmdb found: "+str(video) ,level=xbmc.LOGWARNING)
+                    pass 
+                    
+                        
+            videos = newvideos
+    
+    return videos
         
 
 def list_videos(params):
     # Get the list of videos in the category.
-    videos = get_movies(params)#get_videos(category)    
+    videos = get_movies(params)#get_videos(category)
+    
+    videos = filterSimilarVideos(params, videos)    
      
-    xbmc.log("List videos: "+str(videos),level=xbmc.LOGWARNING)
+    xbmc.log("List videos: "+str(videos[:30]),level=xbmc.LOGWARNING)
     # Create a list for our items.
     listing = []
     # Iterate through videos.
     for video in videos:
         
-        xbmc.log("List videos: "+str(video),level=xbmc.LOGWARNING)
+        #xbmc.log("List videos: "+str(video),level=xbmc.LOGWARNING)
         try:
             thumbnailImage=video['thumbnail']
         except:
