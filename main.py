@@ -267,35 +267,58 @@ def filterSimilarVideos(params, videos):
     
     for item in params['category'].split(','):
         if '__SimilarTo__' in item:
-            imdb = item.replace("__SimilarTo__", "").replace("tt","")
-            tmdb = "0"
-            xbmc.log("Found Similar Filter: SimilarTo:"+str(imdb)+". Full: "+str(params) ,level=xbmc.LOGWARNING)
-                        
-            idx = [item for item in imdbSim if item[0] == imdb]
-            xbmc.log("Found Similar idx "+str(idx) ,level=xbmc.LOGWARNING)
-            
-            if idx is not None and idx<len(imdbSim):
-                imdbs = imdbSim[idx]
+            s = item.replace("__SimilarTo__", "")
+             
+            if "tt" in s:
+                imdb = s.replace("tt","")                
+                tmdb = bisect.bisect_left(imdbLinks, imdb) #[item[1] for item in imdbLinks if item[0] == imdb]
+            elif "tmdb" in s:
+                tmdb = s.replace("tmdb","")
+                imdb = [item[0] for item in imdbLinks if item[1] == tmdb]
             else:
-                xbmc.log("Nothing found in similar list for imdb-id: "+str(imdb) ,level=xbmc.LOGWARNING)
-                return []
+                raise Exception("Unsupported unique id")
+                
+            xbmc.log("Found Similar Filter: IMDB="+str(imdb)+"TMDB="+str(imdb)+". Full: "+str(params) ,level=xbmc.LOGWARNING)
+                        
+            imdbs = [item for item in imdbSim if item[0] == imdb]
+            xbmc.log("Found Similar idx "+str(imdbs) ,level=xbmc.LOGWARNING)
             
+            if imdbs is None or len(imdbs)==0:
+                xbmc.log("Nothing found in similar list for imdb-id: "+str(imdb) ,level=xbmc.LOGWARNING)
+                return []                            
+            
+            imdbs = imdbs[0]
+            imdbs = [int(item) for item in imdbs]
             xbmc.log("Found similar idxs "+str(imdbs) ,level=xbmc.LOGWARNING)
             
             tmdbs = []
+            for imdb in imdbs:
+                idx = bisect.bisect_left(imdbLinks, imdb)
+                if idx<len(imdbLinks):
+                    tmdbs.append( imdbLinks[idx][1] )
+                else:
+                    xbmc.log("NOTHING FOUND "+str(idx) + str(imdb) + str(imdbLinks[:10]) ,level=xbmc.LOGWARNING)
             
             newvideos = []
             for video in videos:
                 if 'imdb' in video['uniqueid']:
-                    if  video['uniqueid']['imdb'] in imdbs:
-                        newvideos.append(video)
-                    else:
-                        #do not add
-                        pass
+                    try:
+                        if  int(video['uniqueid']['imdb'].replace("tt","")) in imdbs:
+                            newvideos.append(video)
+                        else:
+                            #do not add
+                            pass
+                    except:
+                        pass #some movies do not have imdb id
                 elif 'tmdb' in video['uniqueid']:
-                    #xbmc.log("No imdb found but tmdb: "+str(video) ,level=xbmc.LOGWARNING)
-                    if  video['uniqueid']['tmdb'] in tmdbs:
-                        newvideos.append(video)
+                    try:
+                        if  int(video['uniqueid']['tmdb']) in tmdbs:
+                            newvideos.append(video)
+                        else:
+                            #do not add
+                            pass
+                    except:
+                        pass #some movies do not have imdb id
                 else:
                     #no id found that can be used
                     xbmc.log("No imdb nor tmdb found: "+str(video) ,level=xbmc.LOGWARNING)
@@ -334,7 +357,7 @@ def list_videos(params):
             "genre": cleanStr(video.get('genre','')), 
             "country": cleanStr(video.get('country', "")),
             'plot': cleanStr(video.get('plot')), #getInfoStr(video),
-            "tagline": cleanStr(video.get('tagline')),
+            "tagline": cleanStr(video.get('genre','')) + "\n\n" + cleanStr(video.get('tagline')),
             'rating': video['rating'],  
             "playcount":video['playcount'], 
             "trailer": video.get('trailer'),            
