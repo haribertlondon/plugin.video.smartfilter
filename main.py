@@ -260,6 +260,22 @@ def loadSimilarVideoDb():
     return (imdbLinks, imdbSim)
   
     
+def getUniqueIds(s, imdbLinks):
+    if "tt" in s:
+        imdb = s.replace("tt","")                
+        tmdb = bisect.bisect_left(imdbLinks, imdb) #[item[1] for item in imdbLinks if item[0] == imdb]
+    elif "tmdb" in s:
+        tmdb = s.replace("tmdb","")
+        imdb = [item[0] for item in imdbLinks if item[1] == tmdb]
+        try:
+            imdb = imdb[0]
+        except:
+            imdb = []
+    else:
+        raise Exception("Unsupported unique id")
+        
+    xbmc.log("Found Similar Filter: IMDB="+str(imdb)+"TMDB="+str(tmdb)+". " ,level=xbmc.LOGWARNING)
+    return (imdb, tmdb)
 
 def filterSimilarVideos(params, videos):
     
@@ -269,17 +285,9 @@ def filterSimilarVideos(params, videos):
         if '__SimilarTo__' in item:
             s = item.replace("__SimilarTo__", "")
              
-            if "tt" in s:
-                imdb = s.replace("tt","")                
-                tmdb = bisect.bisect_left(imdbLinks, imdb) #[item[1] for item in imdbLinks if item[0] == imdb]
-            elif "tmdb" in s:
-                tmdb = s.replace("tmdb","")
-                imdb = [item[0] for item in imdbLinks if item[1] == tmdb]
-            else:
-                raise Exception("Unsupported unique id")
-                
-            xbmc.log("Found Similar Filter: IMDB="+str(imdb)+"TMDB="+str(imdb)+". Full: "+str(params) ,level=xbmc.LOGWARNING)
-                        
+            (imdb, tmdb) = getUniqueIds(s, imdbLinks)
+               
+            #find similar movies as imdbs         
             imdbs = [item for item in imdbSim if item[0] == imdb]
             xbmc.log("Found Similar idx "+str(imdbs) ,level=xbmc.LOGWARNING)
             
