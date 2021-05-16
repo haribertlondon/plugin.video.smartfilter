@@ -358,7 +358,8 @@ def list_videos(params):
             
         list_item = xbmcgui.ListItem(label=video['label'], label2=str(video['rating']))
         
-               
+        #xbmc.log("UNIQUEID "+str(video.get('uniqueid',{}).get('imdb','')),level=xbmc.LOGWARNING)     
+        
         list_item.setInfo( type="video", infoLabels={
             "title": video['label'] , 
             "year": video['year'],  
@@ -374,6 +375,11 @@ def list_videos(params):
             "mediatype": "movie" 
             } )
         
+        try:
+            defaultId = video.get('uniqueid',{}).keys()[0]
+        except:
+            defaultId = "imdb"
+        list_item.setUniqueIDs(video.get('uniqueid',{}),  defaultId)
         list_item.setProperty('fanart_image', thumbnailImage)        
         list_item.setProperty("totaltime", str(video['runtime']))                
         list_item.setProperty("dbid", str(video.get('movieid')))
