@@ -36,9 +36,7 @@ studio_nonorthern.extend(studio_fr)
 studio_nonorthern.extend(studio_misc)
 
 
-
-def get_url(**kwargs):
-    return '{0}?{1}'.format(_url, urlencode(kwargs))
+cachefile = __path__ + "/cachefile.txt"
 
 def list_categories(params):    
     xbmc.log("List category: "+str(params),level=xbmc.LOGWARNING)
@@ -89,6 +87,17 @@ def list_categories(params):
     xbmcplugin.endOfDirectory(__handle__)
 
 def getJSON(url, select):
+    xbmc.log("Try to get cached info..." ,level=xbmc.LOGWARNING)
+    js = cache.getCache(cachefile, url, 7, 'json')
+    if js is None or len(js) == 0:
+        xbmc.log("Nothing found in cache. Getting by JSON RPC ",level=xbmc.LOGWARNING)
+        js = getJSON_direct(url, select)
+        xbmc.log("Data received. Storing to cache",level=xbmc.LOGWARNING)
+        cache.setCache(cachefile, url, js, 'json')
+        xbmc.log("Done.",level=xbmc.LOGWARNING)
+    return js
+    
+def getJSON_direct(url, select):
     html = ""    
     try:    
         html = xbmc.executeJSONRPC(url)

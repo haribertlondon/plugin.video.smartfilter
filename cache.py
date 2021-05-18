@@ -1,9 +1,9 @@
 #import pickle
 import logging
 import datetime
-import logUtils
 import json
-import pickle 
+import pickle
+import xbmc 
 
 #json is faster than pickle
 
@@ -51,15 +51,15 @@ def checkDate(date, maxDays, fileFormat):
 
 def getCache(filename, key, maxDays, fileFormat = 'pickle'):
 
-    if type(filename)== str:
-        cache = openCacheFile(filename, fileFormat)    
-    else:
-        cache = filename
+    #if type(filename)== str:
+    cache = openCacheFile(filename, fileFormat)    
+    #else:
+    #    cache = filename
         
     if  key in cache:
         (date, content) = cache[key]
-    else:
-        logging.warning("Key <" + key + "> does not exist")
+    else:        
+        xbmc.log("Key <" + key + "> does not exist" +  str(cache),level=xbmc.LOGWARNING)
         return ""
 
     if checkDate(date, maxDays, fileFormat):
@@ -82,7 +82,9 @@ def cleanCache(filename, maxDays, fileFormat = 'pickle'):
 
 if __name__ == "__main__":
     #set logging options
-    logUtils.setLogger('Z:/Programs/AutoOTR/getCache.log')
+    #logUtils.setLogger('Z:/Programs/AutoOTR/getCache.log')
+    getCache(r'C:\Users\bmueller\AppData\Roaming\Kodi\addons\plugin.video.smartfilter\cachefile.txt','{"jsonrpc": "2.0", "params": {"sort": {"order": "ascending", "method": "title"},  "properties": ["title", "thumbnail", "file", "genre", "rating", "year", "playcount", "lastplayed", "dateadded", "runtime", "imdbnumber", "uniqueid", "plot", "country", "tagline", "trailer", "streamdetails"]}, "method": "VideoLibrary.Getmovies", "id": "libmovies"}',7,'json')
+    pass
 
     #setCache("test.cache", "Pferd", "Hufe")
     #cleanCache("test.cache", 1)
