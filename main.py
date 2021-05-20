@@ -1,18 +1,15 @@
 import sys
-from urllib import urlencode
 from urlparse import parse_qsl
 import xbmc
 import xbmcaddon
 import xbmcgui
 import xbmcplugin
 import json
-import urllib,urllib2
 import time
 import os
-import datetime
-import csv
-import bisect
 import cache
+import similar
+
 
 __url__ = sys.argv[0]
 __handle__ = int(sys.argv[1])
@@ -46,19 +43,6 @@ def list_categories(params):
     for category in categories:
         # Create a list item with a text label and a thumbnail image.
         if (not "category" in params) or (category not in params['category'] ) or (category == categories[0]):
-            
-            #debug by mass json requests
-            #if category == categories[0] :#or not "category" in params:
-            #    lst = []
-            #else:
-            #    temp = params.copy()
-            #    if 'category' in temp:
-            #        temp['category'] = temp['category'] + ',' + category
-            #    else:
-            #        temp['category']  = category
-            #        
-            #    lst = get_movies(temp)           
-                
              
             list_item = xbmcgui.ListItem(label=category)# + ": #" + str(len(lst)))#
                  
@@ -208,8 +192,6 @@ def getInfoStr(video):
     result = ''
     for k, v in video.items():        
         if 'movieid' != k and 'thumbnail' != k and 'label' != k:
-            
-
             try:
                 result = result + str(k)
             except:
@@ -260,99 +242,11 @@ def cleanStr(lst):
         
     return result.rstrip(',')    
 
-def loadSimilarVideoDb():
-    with open(__path__+'/imdb_links.csv') as csvfile:
-        imdbLinks = list(csv.reader(csvfile, delimiter=',',))
-            
-    with open(__path__+'/imdb_sim.csv') as csvfile:
-        imdbSim = list(csv.reader(csvfile, delimiter=',',))
-        
-    return (imdbLinks, imdbSim)
-  
-    
-def getUniqueIds(s, imdbLinks):
-    if "tt" in s:
-        imdb = s.replace("tt","")                
-        tmdb = bisect.bisect_left(imdbLinks, imdb) #[item[1] for item in imdbLinks if item[0] == imdb]
-    elif "tmdb" in s:
-        tmdb = s.replace("tmdb","")
-        imdb = [item[0] for item in imdbLinks if item[1] == tmdb]
-        try:
-            imdb = imdb[0]
-        except:
-            imdb = []
-    else:
-        raise Exception("Unsupported unique id")
-        
-    xbmc.log("Found Similar Filter: IMDB="+str(imdb)+"TMDB="+str(tmdb)+". " ,level=xbmc.LOGWARNING)
-    return (imdb, tmdb)
-
-def filterSimilarVideos(params, videos):
-    
-    (imdbLinks, imdbSim) = loadSimilarVideoDb()
-    
-    for item in params['category'].split(','):
-        if '__SimilarTo__' in item:
-            s = item.replace("__SimilarTo__", "")
-             
-            (imdb, tmdb) = getUniqueIds(s, imdbLinks)
-               
-            #find similar movies as imdbs         
-            imdbs = [item for item in imdbSim if item[0] == imdb]
-            xbmc.log("Found Similar idx "+str(imdbs) ,level=xbmc.LOGWARNING)
-            
-            if imdbs is None or len(imdbs)==0:
-                xbmc.log("Nothing found in similar list for imdb-id: "+str(imdb) ,level=xbmc.LOGWARNING)
-                return []                            
-            
-            imdbs = imdbs[0]
-            imdbs = [int(item) for item in imdbs]
-            xbmc.log("Found similar idxs "+str(imdbs) ,level=xbmc.LOGWARNING)
-            
-            tmdbs = []
-            for imdb in imdbs:
-                idx = bisect.bisect_left(imdbLinks, imdb)
-                if idx<len(imdbLinks):
-                    tmdbs.append( imdbLinks[idx][1] )
-                else:
-                    xbmc.log("NOTHING FOUND "+str(idx) + str(imdb) + str(imdbLinks[:10]) ,level=xbmc.LOGWARNING)
-            
-            newvideos = []
-            for video in videos:
-                if 'imdb' in video['uniqueid']:
-                    try:
-                        if  int(video['uniqueid']['imdb'].replace("tt","")) in imdbs:
-                            newvideos.append(video)
-                        else:
-                            #do not add
-                            pass
-                    except:
-                        pass #some movies do not have imdb id
-                elif 'tmdb' in video['uniqueid']:
-                    try:
-                        if  int(video['uniqueid']['tmdb']) in tmdbs:
-                            newvideos.append(video)
-                        else:
-                            #do not add
-                            pass
-                    except:
-                        pass #some movies do not have imdb id
-                else:
-                    #no id found that can be used
-                    xbmc.log("No imdb nor tmdb found: "+str(video) ,level=xbmc.LOGWARNING)
-                    pass 
-                    
-                        
-            videos = newvideos
-    
-    return videos
-        
-
 def list_videos(params):
     # Get the list of videos in the category.
     videos = get_movies(params)#get_videos(category)
     
-    videos = filterSimilarVideos(params, videos)    
+    videos = similar.filterSimilarVideos(__path__, params, videos)    
      
     xbmc.log("List videos: "+str(videos[:30]),level=xbmc.LOGWARNING)
     # Create a list for our items.
@@ -400,14 +294,11 @@ def list_videos(params):
         list_item.setArt( {'thumb': thumbnailImage, 'poster': thumbnailImage, 'banner': thumbnailImage, 'fanart': thumbnailImage, 'icon': thumbnailImage} )                    
         list_item.setThumbnailImage(thumbnailImage)
         list_item.setIconImage(thumbnailImage)                
-                
        
         try:        
             list_item.addStreamInfo("video", video['streamdetails']['video'][0] )
         except:
             list_item.addStreamInfo("video", {'duration': video['runtime']} )      
-                           
-    
                 
         url = '{0}?action=play&video={1}'.format(__url__, video.get('file','').encode('utf-8'))
         # Add the list item to a virtual Kodi folder.
@@ -423,18 +314,12 @@ def list_videos(params):
 def play_video(path):    
     # Create a playable item with a path to play.
     xbmc.log("Play Item:  "+str(path),level=xbmc.LOGWARNING)
-    play_item = xbmcgui.ListItem(path=path['video'])
-    #xbmc.log("Play Item:  "+str(play_item)+'-----------------'+str(path),level=xbmc.LOGWARNING) 
+    play_item = xbmcgui.ListItem(path=path['video']) 
     # Pass the item to the Kodi player.
     xbmcplugin.setResolvedUrl(__handle__, True, listitem=play_item)
     
-#def popup(title, s):
-#    xbmc.executebuiltin('Notification('+title.replace(",","_")+','+s.replace(",","_")+',5000,'+__icon__+')')    
 
 def router(paramstring):
-    
-    
-    
     xbmc.log("Started smart filter:  "+str(__path__),level=xbmc.LOGWARNING)
     xbmcplugin.setContent(__handle__, 'movies')    
         
@@ -455,8 +340,6 @@ def router(paramstring):
     
     if 'action' not in params:
         params['action']='category'
-        
-    #popup(params['action'], params.get('category','No category'))
     
     xbmcplugin.setPluginCategory(__handle__, params.get('category','No category'))
         
