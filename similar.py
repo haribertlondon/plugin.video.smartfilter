@@ -1,30 +1,15 @@
-import csv
 import utils
-import bisect
 try:
     import xbmc
 except:
     pass
 
-mainIds = ["imdb", "tmdb", "tvdb"]
+mainIds = ["imdb", "tmdb", "tvdb","mediatype"]
 
-def log(s, level = xbmc.LOGWARNING):
+def log(s, level = None):
     utils.log(s,level)
     
-def getUniqueIds(s, imdbLinks):
-    #if "tt" in s:
-    #    imdb = s.replace("tt","")                
-    #    tmdb = bisect.bisect_left(imdbLinks, imdb) #[item[1] for item in imdbLinks if item[0] == imdb]
-    #elif "tmdb" in s:
-    #    tmdb = s.replace("tmdb","")
-    #    imdb = [item[0] for item in imdbLinks if item[1] == tmdb]
-    #    try:
-    #        imdb = imdb[0]
-    #    except:
-    #        imdb = []
-    #else:
-    #    raise Exception("Unsupported unique id")
-    
+def getTmdbId(s):
     ids = s.split("_")
     
     dic = {}
@@ -32,40 +17,32 @@ def getUniqueIds(s, imdbLinks):
         for testId in mainIds:
             if testId in item:
                 dic[testId] = item.replace(testId, "")
-    
-    if "imdb" in dic and "tmdb" in dic:
-        utils.log("Both ids found. Fine")
-    elif "imdb" in dic and not "tmdb" in dic:
-        dic["tmdb"] = utils.getTmdbFromImdb(dic["imdb"])
-    elif not "imdb" in dic and "tmdb" in dic:
-        dic["imdb"] = utils.getImdbFromTmdb(dic["tmdb"])
-    else:
-        raise Exception("Not able to get tmdb id")
-            
-    tmdb = dic["tmdb"]    
-    imdb = dic["imdb"]
-        
-    utils.log("Found Similar Filter: IMDB="+str(imdb)+" TMDB="+str(tmdb)+". " )
-    return (imdb, tmdb)
-
-
-def loadSimilarVideoDb(path):
-    with open(path+'/imdb_links.csv') as csvfile:
-        imdbLinks = list(csv.reader(csvfile, delimiter=',',))
-            
-    with open(path+'/imdb_sim.csv') as csvfile:
-        imdbSim = list(csv.reader(csvfile, delimiter=',',))
-        
-    return (imdbLinks, imdbSim)
- 
-
      
-def convertTmdbToImdb(tmdbs):
+    if not "tmdb" in dic:
+        if "imdb" in dic:
+            dic["tmdb"] = utils.getTmdbFromImdb(dic["imdb"])
+        
+        if "tvdb" in dic:
+            dic["tmdb"] = utils.getTmdbFromTvdb(dic["tvdb"])            
+    
+    mediatype = dic["mediatype"]
+        
+    try:    
+        tmdb = dic["tmdb"]
+    except Exception as e:
+        raise Exception("Not able to get tmdb id. String="+s+ "Error= "+str(e))    
+        
+    utils.log("Found Similar Filter:  TMDB="+str(tmdb)+". " )
+    return (tmdb, mediatype)
+
+
+    
+def getAllPlatformIds(tmdbs, mediatype):
     result = []
     for tmdb in tmdbs:
-        x = utils.getImdbFromTmdb(tmdb)
-        log(x)
-        result.append(x)
+        platformIds = utils.getTvdbAndImdbFromTmdb(tmdb, mediatype) 
+        
+        result.append( platformIds )
     return result
         
     
@@ -75,43 +52,55 @@ def loadSimilarVideo_local(imdb, tmdb, imdbSim):
     imdbs = [item for item in imdbSim if item[0] == imdb]
     return imdbs
     
+   
+def hasMatch(video, similarIds):
+    #log("Checking: "+repr(video) +  repr(similarIds))
     
-def hasMatch(video, movielist, idType):
-    if idType in video['uniqueid']:
-        try:
-            if  int(video['uniqueid'][idType].replace("tt","")) in movielist:
-                return True
-        except:
-            pass
+    for similarId in similarIds:
+        for platformKey, platformId in similarId.items():
+            try:
+                if int(video['uniqueid'][platformKey].replace("tt","")) == platformId:
+                    return True
+            except:
+                pass
+        
     return False
-    
-def filterSimilarVideos(path, params, videos):
-    
-    (imdbLinks, imdbSim) = loadSimilarVideoDb(path)
-    
+
+def getSimilarVideos(params):
+    isSeries = None
     for item in params['category'].split(','):
         if '__SimilarTo__' in item:
             s = item.replace("__SimilarTo__", "")
              
-            (imdb, tmdb) = getUniqueIds(s, imdbLinks)
+            (tmdb, mediatype) = getTmdbId(s)
             
-            tmdbs = utils.loadSimilarVideo_tmdb(tmdb)
-            log("Found Similar idxs TMDB"+str(tmdbs) ,level=xbmc.LOGWARNING)
-               
+            if "tv" in mediatype or "episode" in mediatype or "season" in mediatype:
+                isSeries = True
+            else:
+                isSeries = False
             
-            imdbs = convertTmdbToImdb(tmdbs)
-            log("Found Similar idxs IMDB"+str(imdbs) ,level=xbmc.LOGWARNING)
+            tmdbs = utils.loadSimilarVideo_tmdb(tmdb, mediatype)
+            log("Found Similar idxs TMDB: "+repr(tmdbs))
             
-            
+            platformIds = getAllPlatformIds(tmdbs, mediatype)
+            log("Found Similar idxs on all platforms: "+repr(platformIds))
+    return (platformIds, isSeries )
+    
+def filterSimilarVideos(params, videos, similarIds):
+    newvideos = videos
+    for item in params['category'].split(','):
+        if '__SimilarTo__' in item:
             newvideos = []
             for video in videos:                
-                if hasMatch(video, imdbs, "imdb") or hasMatch(video, tmdbs, "tmdb"): 
+                if hasMatch(video, similarIds): 
                     newvideos.append(video)                
                     
-    log(newvideos)            
-    
+    #log(newvideos)                
     return newvideos
         
         
 if __name__ == "__main__":
-    loadSimilarVideo_tmdb("27205")
+    #loadSimilarVideo_tmdb("27205","movie")
+    params = {"category": "__SimilarTo__tvdb95011_mediatypetvshow", }
+    (platformIds, isSeries ) = getSimilarVideos(params)  
+    filterSimilarVideos(params, [ {'uniqueid': {"tvdb": 1000 }}, {'uniqueid': {"imdb":"tt1000"}}, {'uniqueid': {"tmdb":1418}} ], platformIds)

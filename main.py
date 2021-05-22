@@ -78,33 +78,37 @@ def getJSON(url, select):
         js = getJSON_direct(url, select)
         xbmc.log("Data received. Storing to cache",level=xbmc.LOGWARNING)
         cache.setCache(cachefile, url, js, 'json')
-        xbmc.log("Done.",level=xbmc.LOGWARNING)
     return js
     
 def getJSON_direct(url, select):
     html = ""    
     try:    
         html = xbmc.executeJSONRPC(url)
-        xbmc.log("List videos: "+html[:200],level=xbmc.LOGWARNING)
+        xbmc.log("getJSON_direct: "+html[:200],level=xbmc.LOGWARNING)
         js = json.loads(html) #convert json -> dic        
         return js['result'][select]
     except Exception as e:        
         xbmc.log('Syncplayer: Json Error: '+str(e) +' Url='+str(url) + ' Response' + str(html), level=xbmc.LOGNOTICE)
         return {}
 
+def needsSeriesview(params, isSimilarSeries):
+    if 'Series' in params['category'].split(',') or isSimilarSeries:
+        return True
+    else:
+        return False
 
-def get_movies(params): 
+def get_movies(params, isSeries): 
         
     filter = []# '"operator": "contains", "field": "title", "value": "Star Wars"'
     
-    xbmc.log("List videos: "+str(params),level=xbmc.LOGWARNING)
+    xbmc.log("List get_movies params: "+str(params),level=xbmc.LOGWARNING)
     
-    if 'Series' in params['category'].split(','):                                                          
+    if needsSeriesview(params, isSeries):                                                          
         method = 'tvshows'
-        properties = '["title", "thumbnail", "file", "genre", "rating", "year", "playcount", "lastplayed", "dateadded", "runtime", "imdbnumber", "uniqueid", "plot", "studio" ]'    #"tagline",    "trailer",
+        properties = '["title", "thumbnail", "file", "genre", "rating", "year", "playcount", "lastplayed", "dateadded", "runtime", "imdbnumber", "uniqueid",  "studio" ]'    #"tagline",    "trailer",
     else:
         method = 'movies'
-        properties = '["title", "thumbnail", "file", "genre", "rating", "year", "playcount", "lastplayed", "dateadded", "runtime", "imdbnumber", "uniqueid", "plot", "country", "tagline", "trailer", "streamdetails"]' 
+        properties = '["title", "thumbnail", "file", "genre", "rating", "year", "playcount", "lastplayed", "dateadded", "runtime", "imdbnumber", "uniqueid",  "country", "tagline", "trailer", "streamdetails"]' 
     
     for item in params['category'].split(','):
         if 'Series' == item: 
@@ -243,10 +247,12 @@ def cleanStr(lst):
     return result.rstrip(',')    
 
 def list_videos(params):
-    # Get the list of videos in the category.
-    videos = get_movies(params)#get_videos(category)
+    (platformIds, requestSeriesView ) = similar.getSimilarVideos(params)
     
-    videos = similar.filterSimilarVideos(__path__, params, videos)    
+    # Get the list of videos in the category.
+    videos = get_movies(params, requestSeriesView)#get_videos(category)
+    
+    videos = similar.filterSimilarVideos(params, videos, platformIds)    
      
     xbmc.log("List videos: "+str(videos[:30]),level=xbmc.LOGWARNING)
     # Create a list for our items.
@@ -269,14 +275,14 @@ def list_videos(params):
             "year": video['year'],  
             "genre": cleanStr(video.get('genre','')), 
             "country": cleanStr(video.get('country', "")),
-            'plot': cleanStr(video.get('plot')), #getInfoStr(video),
+            'plot': "-Deactivated-", #cleanStr(video.get('plot')), #getInfoStr(video),
             "tagline": cleanStr(video.get('genre','')) + "\n\n" + cleanStr(video.get('tagline')),
             'rating': video['rating'],  
             "playcount":video['playcount'], 
             "trailer": video.get('trailer'),            
             "label2": str(round(video['rating'],1)), 
             "dateadded": video.get('dateadded',''),
-            "mediatype": "movie" 
+            "mediatype": "tvshow" if needsSeriesview(params, requestSeriesView) else "movie" 
             } )
         
         try:
@@ -288,8 +294,7 @@ def list_videos(params):
         list_item.setProperty("totaltime", str(video['runtime']))                
         list_item.setProperty("dbid", str(video.get('movieid')))
         list_item.setProperty("imdbnumber", str(video.get('imdbnumber')))    
-        list_item.setProperty('IsPlayable', 'true')
-        list_item.setProperty('IsFolder', 'false')
+        
         
         list_item.setArt( {'thumb': thumbnailImage, 'poster': thumbnailImage, 'banner': thumbnailImage, 'fanart': thumbnailImage, 'icon': thumbnailImage} )                    
         list_item.setThumbnailImage(thumbnailImage)
@@ -298,9 +303,16 @@ def list_videos(params):
         try:        
             list_item.addStreamInfo("video", video['streamdetails']['video'][0] )
         except:
-            list_item.addStreamInfo("video", {'duration': video['runtime']} )      
-                
-        url = '{0}?action=play&video={1}'.format(__url__, video.get('file','').encode('utf-8'))
+            list_item.addStreamInfo("video", {'duration': video['runtime']} )     
+        
+        if needsSeriesview(params, requestSeriesView):
+            url = '{0}?action=showseries&tvshowid={1}'.format(__url__, video.get('tvshowid',''))
+            list_item.setProperty('IsPlayable', 'false')
+            list_item.setProperty('IsFolder', 'true')
+        else:        
+            url = '{0}?action=play&video={1}'.format(__url__, video.get('file','').encode('utf-8'))
+            list_item.setProperty('IsPlayable', 'true')
+            list_item.setProperty('IsFolder', 'false')
         # Add the list item to a virtual Kodi folder.
         # is_folder = False means that this item won't open any sub-list.
         is_folder = False
@@ -309,6 +321,19 @@ def list_videos(params):
       
     xbmcplugin.addDirectoryItems(__handle__, listing, len(listing))
     xbmcplugin.endOfDirectory(__handle__)
+    
+def showseries(path):
+    xbmc.log("Show series:  "+str(path),level=xbmc.LOGWARNING)
+    tvshowid = path['tvshowid']
+    xbmc.log("--------------------------- Opening series:  "+str(tvshowid),level=xbmc.LOGWARNING)
+    url = json.dumps({"jsonrpc":"2.0","method":"GUI.ActivateWindow","id":tvshowid,"params":{"window":"videos","parameters":["TvShowTitles"]}})
+    html = xbmc.executeJSONRPC(url)
+    xbmc.log(html)
+    
+    
+    #play_item = xbmcgui.ListItem(path=path['tvshowid']) 
+    # Pass the item to the Kodi player.
+    #xbmcplugin.setResolvedUrl(__handle__, True, listitem=play_item)
     
     
 def play_video(path):    
@@ -353,6 +378,8 @@ def router(paramstring):
     elif params['action'] == 'category':
         # If the plugin is called from Kodi UI without any parameters, display the list of video categories
         list_categories(params)
+    elif params['action'] == 'showseries':
+        showseries(params)
     else:
         raise Exception('Unknown action')
 
