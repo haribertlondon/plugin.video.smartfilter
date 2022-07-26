@@ -68,6 +68,7 @@ def hasMatch(video, similarIds):
 
 def getSimilarVideos(params):
     isSeries = None
+    platformIds = []
     for item in params['category'].split(','):
         if '__SimilarTo__' in item:
             s = item.replace("__SimilarTo__", "")
