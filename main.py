@@ -286,7 +286,7 @@ def list_videos(params):
             "genre": cleanStr(video.get('genre','')), 
             "country": cleanStr(video.get('country', "")),
             'plot': cleanStr(video.get('plot')) if video.get('plot') else "-Deactivated-" , #, #getInfoStr(video),
-            "tagline": cleanStr(video.get('genre','')) + "\n\n" + cleanStr(video.get('tagline')),
+            "tagline": cleanStr(video.get('genre','')).replace(",",", ") + "\n\n" + cleanStr(video.get('tagline')),
             'rating': video['rating'],  
             "playcount":video['playcount'], 
             "trailer": video.get('trailer'),            
