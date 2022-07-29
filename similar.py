@@ -6,9 +6,7 @@ except:
 
 mainIds = ["imdb", "tmdb", "tvdb","mediatype"]
 
-def log(s, level = None):
-    utils.log(s,level)
-    
+   
 def getTmdbId(s):
     ids = s.split("_")
     
@@ -30,7 +28,7 @@ def getTmdbId(s):
     try:    
         tmdb = dic["tmdb"]
     except Exception as e:
-        raise Exception("Not able to get tmdb id. String="+s+ "Error= "+str(e))    
+        raise Exception("Not able to get tmdb id. String="+s+ "Error= "+str(e), level=xbmc.LOGWARNING)    
         
     utils.log("Found Similar Filter:  TMDB="+str(tmdb)+". " )
     return (tmdb, mediatype)
@@ -54,14 +52,16 @@ def loadSimilarVideo_local(imdb, tmdb, imdbSim):
     
    
 def hasMatch(video, similarIds):
-    #log("Checking: "+repr(video) +  repr(similarIds))
+    #utils.log("Checking: "+repr(video) +  repr(similarIds))
     
     for similarId in similarIds:
         for platformKey, platformId in similarId.items():
             try:
                 if int(video['uniqueid'][platformKey].replace("tt","")) == platformId:
+                    utils.log("Found xxxx")
                     return True
-            except:
+            except Exception as e:
+                utils.log(e, level=xbmc.LOGWARNING)
                 pass
         
     return False
@@ -69,34 +69,34 @@ def hasMatch(video, similarIds):
 def getSimilarVideos(params):
     isSeries = None
     platformIds = []
-    for item in params['category'].split(','):
-        if '__SimilarTo__' in item:
-            s = item.replace("__SimilarTo__", "")
-             
-            (tmdb, mediatype) = getTmdbId(s)
-            
-            if "tv" in mediatype or "episode" in mediatype or "season" in mediatype:
-                isSeries = True
-            else:
-                isSeries = False
-            
-            tmdbs = utils.loadSimilarVideo_tmdb(tmdb, mediatype)
-            log("Found Similar idxs TMDB: "+repr(tmdbs))
-            
-            platformIds = getAllPlatformIds(tmdbs, mediatype)
-            log("Found Similar idxs on all platforms: "+repr(platformIds))
+    if 'category' in params:
+        for item in params['category'].split(','):
+            if '__SimilarTo__' in item:
+                s = item.replace("__SimilarTo__", "")
+                 
+                (tmdb, mediatype) = getTmdbId(s)
+                
+                if "tv" in mediatype or "episode" in mediatype or "season" in mediatype:
+                    isSeries = True
+                else:
+                    isSeries = False
+                
+                tmdbs = utils.loadSimilarVideo_tmdb(tmdb, mediatype)
+                utils.log("Found Similar idxs TMDB: "+repr(tmdbs))
+                
+                platformIds = getAllPlatformIds(tmdbs, mediatype)
+                utils.log("Found Similar idxs on all platforms: "+repr(platformIds))
     return (platformIds, isSeries )
     
-def filterSimilarVideos(params, videos, similarIds):
+def filterSimilarVideos(params, videos, similarIds, keyword):
     newvideos = videos
-    for item in params['category'].split(','):
-        if '__SimilarTo__' in item:
-            newvideos = []
-            for video in videos:                
-                if hasMatch(video, similarIds): 
-                    newvideos.append(video)                
-                    
-    #log(newvideos)                
+    if 'category' in params:
+        for item in params['category'].split(','):
+            if keyword in item:
+                newvideos = []
+                for video in videos:                
+                    if hasMatch(video, similarIds): 
+                        newvideos.append(video)                
     return newvideos
         
         

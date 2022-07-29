@@ -7,19 +7,43 @@ try:
 except:
     import urllib.request as urlrequest #@UnusedImport
 
+import cache
 import ssl
 import os
 import json
 
 apikey = "10dc4a6c0d1a5e1bb338c026d5e7e6f1"
 
-def log(s, level = None):
+def getJSON(cachefile, url, select, cacheAge = 7):
+    log("Try to get cached info..." )
+    js = cache.getCache(cachefile, url, cacheAge, 'json')
+    if js is None or len(js) == 0:
+        xbmc.log("Nothing found in cache. Getting by JSON RPC ",level=xbmc.LOGWARNING)
+        js = getJSON_direct(url, select)
+        xbmc.log("Data received. Storing to cache",level=xbmc.LOGWARNING)
+        cache.setCache(cachefile, url, js, 'json')
+    return js
+    
+def getJSON_direct(url, select):
+    html = ""    
+    try:    
+        html = xbmc.executeJSONRPC(url)
+        log("getJSON_direct: "+html[:200])
+        js = json.loads(html) #convert json -> dic        
+        return js['result'][select]
+    except Exception as e:        
+        log('Syncplayer: Json Error: '+str(e) +' Url='+str(url) + ' Response' + str(html), level=xbmc.LOGWARNING)
+        return {}
+
+
+def log(s, level = xbmc.LOGDEBUG):
+    output =  "Smartfilter: " + repr(s)
     try:
-        xbmc.log( repr(s) ,level=xbmc.LOGDEBUG)
+        xbmc.log(output ,level)
         #do nothing, only activate for debug
         pass
     except:
-        print( repr(s) )
+        print( repr(output) )
         
 
         
