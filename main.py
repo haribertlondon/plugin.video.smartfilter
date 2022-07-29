@@ -25,7 +25,7 @@ _similarRecentWatchedRebuildDatabase = "~ Rebuild Similarity Database"
 cachefile = __path__ + "/cachefile.txt"
 categories = ['-> List', _similarRecentWatchedStr, 'Series', 'Unwatched', 'NoDrama', 'Comedy', 'Action', 'Short', 'Long',  'Old', 'New', 'Good', 'US', 'NoUS', 'Northern', "Horror", "Bad", "German", "Crime", _similarRecentWatchedRebuildDatabase ]
 
-similarMovieSuggestion = similarMovieSuggestions.similarMovieSuggestions(__path__ + "/similarMoviesCache.json", __path__ +"/similarMoviesDB.json")
+similarMovieSuggestion = similarMovieSuggestions.similarMovieSuggestions(__path__ + "/similarMoviesCache.json",__path__ + "/similarMoviesCacheRecent.json", __path__ +"/similarMoviesDB.json")
 
 studio_us = ["Amazon" "Syfy", "FOX" "The CW", "TBS", "SundanceTV", "Showtime", "Playhouse Disney", "Peacock", "FXX", "CBS", "AMC", "ABC (AU)", "ABC (US)", "Comedy Central (US)", "FOX (US)", "HBO", "History", "Netflix", "National Geographic (US)", "FX (US)", "SciFi", "TNT (US)", "Disney Channel", "Disney XD", "USA Network", "Science Channel", "NBC", "Adult Swim"]
 studio_br = [ "ITV", "ITV1", "ITV2", "E4", "Channel 4", "BBC", "BBC America", "BBC One", "BBC Three", "BBC Two", "Acorn TV"]
@@ -190,8 +190,8 @@ def get_movies(params, isSeries):
     lst = utils.getJSON(cachefile, request, method)
     
     utils.log("Found movies: #"+str(len(lst)))
-    for movie in lst[:10]:
-        utils.log(movie)
+    #for movie in lst[:10]:
+    #    utils.log(movie)
         
     return lst
     

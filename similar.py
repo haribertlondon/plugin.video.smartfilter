@@ -28,7 +28,7 @@ def getTmdbId(s):
     try:    
         tmdb = dic["tmdb"]
     except Exception as e:
-        raise Exception("Not able to get tmdb id. String="+s+ "Error= "+str(e), level=xbmc.LOGWARNING)    
+        raise Exception("getTmdbId: Not able to get tmdb id. String="+s+ "Error= "+str(e), level=xbmc.LOGWARNING)    
         
     utils.log("Found Similar Filter:  TMDB="+str(tmdb)+". " )
     return (tmdb, mediatype)
@@ -61,7 +61,7 @@ def hasMatch(video, similarIds):
                     utils.log("Found xxxx")
                     return True
             except Exception as e:
-                utils.log(e, level=xbmc.LOGWARNING)
+                utils.log('Exception: Has Match (similar)' + repr(e), level=xbmc.LOGWARNING)
                 pass
         
     return False
