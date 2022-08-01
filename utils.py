@@ -14,6 +14,30 @@ import json
 
 apikey = "10dc4a6c0d1a5e1bb338c026d5e7e6f1"
 
+
+def jsonKeys2int(x):
+    if isinstance(x, dict):
+        try:
+            return {int(k):v for k,v in x.items()}
+        except:
+            return x
+    else:
+        return x
+
+#movie helpers
+def reduceMovie(movie):
+    return dict((k, movie[k]) for k in ('label', 'lastplayed', 'movieid', "uniqueid"))
+
+
+def getTmdbID(movie):
+    try:
+        return int(movie["uniqueid"]["tmdb"])
+    except:
+        log("Error while accessing TMDB ID. " + repr(movie))
+
+def compareMovies(movie1, movie2):
+    return getTmdbID(movie1) == getTmdbID(movie2)
+
 def getJSON(cachefile, url, select, cacheAge = 7):
     log("Try to get cached info..." )
     js = cache.getCache(cachefile, url, cacheAge, 'json')

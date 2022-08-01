@@ -13,9 +13,8 @@ import json
 import utils
 
 
-
 class similarMovieSuggestions:
-
+    
     def __init__(self, cachefileDBCreation, cachefileRecent, databaseFile):
         self.cachefileDBCreation = cachefileDBCreation
         self.cachefileRecent = cachefileRecent
@@ -66,15 +65,8 @@ class similarMovieSuggestions:
         set_writers = set(ref_movie["writer"])    
         set_cast = set([x["name"] for x in ref_movie["cast"][:5]])    
         set_tags = set(ref_movie["tag"])
-        
         return (set_genres, set_directors, set_writers, set_cast, set_tags )   
         
-    def reduceMovie(self, movie):
-        return dict((k, movie[k]) for k in ('label', 'lastplayed', 'movieid', "uniqueid"))
-    
-    def compareMovies(self, movie1, movie2):
-        return movie1["uniqueid"]["tmdb"] == movie2["uniqueid"]["tmdb"]
-    
     def createDatabase(self):
         pDialog = xbmcgui.DialogProgress()
         pDialog.create('Kodi', 'Initializing database...')
@@ -92,117 +84,115 @@ class similarMovieSuggestions:
             if idx1 % 100 == 0:            
                 pDialog.update(10 + idx1**2 * 80 // len(kodiList)**2, 'Compare movie: '+movie1["label"])
             for idx2, movie2 in enumerate(kodiList):
-                if idx1>idx2 and not self.compareMovies(movie1, movie2):
+                if idx1>idx2 and not utils.compareMovies(movie1, movie2):
                     try:
                         score = self.get_similarity_score(movie1, movie2, set_genres, set_directors, set_writers, set_cast, set_tags)
                     except:
                         score = 0.0
                     
                     if score > 0.5:
-                        result.append( (score, self.reduceMovie(movie1), self.reduceMovie(movie2) ) )
+                        result.append( (score, utils.reduceMovie(movie1), utils.reduceMovie(movie2) ) )
                         
-        pDialog.update(95, 'Sorting...')
-        result.sort(key=lambda x:x[0])
+        pDialog.update(95, 'Reshaping...')
+        
+        dic = {}
+        for (score, movie1, movie2) in result:
+            if utils.getTmdbID(movie1) in dic:
+                dic[utils.getTmdbID(movie1)]['similar'][utils.getTmdbID(movie2)] = score 
+            else:
+                dic[utils.getTmdbID(movie1)]={'movie': movie1, 'similar' : { utils.getTmdbID(movie2)  : score } } 
+
+            if utils.getTmdbID(movie2) in dic:
+                dic[utils.getTmdbID(movie2) ]['similar'][utils.getTmdbID(movie1)] = score
+            else:
+                dic[utils.getTmdbID(movie2) ]={'movie': movie2, 'similar' : { utils.getTmdbID(movie1): score } }
+                
+                
+                                
         pDialog.close()            
-        return result
+        return dic
     
     
     def saveDatabase(self, lst):
         if self.databaseFile:
             with io.open(self.databaseFile, 'w', encoding='utf8') as json_file:
-                data = json.dumps(lst, ensure_ascii=False)          
+                data = json.dumps(lst, indent=1, ensure_ascii=False)          
                 json_file.write(unicode(data))  
           
+          
     
-    def loadDatabase(self, filename):
+    
+    def loadDatabase(self):
         # Read JSON file
         try:
             with io.open(self.databaseFile, 'r', encoding='utf8') as data_file:
-                result = json.load(data_file)
-        except:
+                result = json.load(data_file, object_hook=utils.jsonKeys2int)
+        except Exception as e:
+            utils.log(e)
             result = []
         return result
     
-    def getSimilarMovies(self, lst, movie):
-        result = []
-        for (score, m1, m2) in lst:
-            partner = None
-            if self.compareMovies(movie, m1):
-                partner = m2
-            elif self.compareMovies(movie, m2):
-                partner = m1
-            else:
-                continue        
-            result.append( (score, movie, partner) )
-        return result
-    
-    def filterUnwatched(self, lst):
-        result = []
-        for (score, movie, partner) in lst:
-            if not partner["lastplayed"]:
-                result.append( (score, movie, partner) ) 
-        return result
-        
-    def printList(self, result):
-        for item in result[-100:]:
-            try:
-                if type(item) is list or type(item) is tuple:
-                    (score, movie1, movie2) = item                          
-                    utils.log( str(score) + str(movie1['label']) + "<-->" + str( movie2['label']) )                
-                else:
-                    utils.log(item['label'])   
-            except:
-                pass
+    def getSimilarMovies(self, similarDict, movie):
+        try:
+            similars = similarDict[utils.getTmdbID(movie) ]
+            return similars['similar']
+        except Exception as e:
+            utils.log(e)     
+            return {}
+                        
+    def printDict(self, dic):
+        utils.log("------------BEGIN------------------")
+        for i in json.dumps(dic, indent=1).split("\n")[:100]:
+            utils.log(i)
+        utils.log("-------------END-------------------")
                 
     def getRecentlyWatched(self, numberOfRecentlyPlayed):
-        request = '{"jsonrpc": "2.0", "method": "VideoLibrary.GetMovies", "params": { "filter": {"field": "playcount", "operator": "greaterthan", "value": "0"}, "limits": { "start" : 0, "end": '+str(numberOfRecentlyPlayed)+' }, "properties" : ["lastplayed", "genre", "director", "writer", "cast","rating","year", "mpaa", "setid", "imdbnumber", "playcount", "tag", "country", "uniqueid"], "sort": { "order": "descending", "method": "lastplayed" } }, "id": "libMovies"}'        
-        return  utils.getJSON(self.cachefileRecent, request, "movies", 7) 
-        
-    def sortList(self, lst):
-        lst.sort(key=lambda x:x[0]) 
+        request = '{"jsonrpc": "2.0", "method": "VideoLibrary.GetMovies", "params": { "filter": {"field": "playcount", "operator": "greaterthan", "value": "0"}, "limits": { "start" : 0, "end": '+str(numberOfRecentlyPlayed)+' }, "properties" : ["lastplayed", "playcount", "uniqueid"], "sort": { "order": "descending", "method": "lastplayed" } }, "id": "libMovies"}'        
+        return  utils.getJSON(self.cachefileRecent, request, "movies", 7)
     
+    def reduceDict(self, dic, maxLen):
+        sortedList = sorted(dic.items(), key=lambda item: item[1])
+        reducedList = sortedList[-maxLen:]
+        return dict(reducedList)
+           
     def getSimilarMovieListBasedOnRecentMovies(self, numberOfRecentlyPlayed = 30):
         utils.log("Load Similar Movies Database... ")
-        fullList = self.loadDatabase(self.databaseFile)     
+        similarDict = self.loadDatabase()     
         
-        if len(fullList)==0:
-            fullList = self.createDatabase()
-            self.saveDatabase(fullList)               
-        
-        self.printList(fullList)
+        if len(similarDict)==0:
+            similarDict = self.createDatabase()
+            self.saveDatabase(similarDict)       
+        utils.log("Similar Database:")        
+        self.printDict(similarDict)
         
         utils.log("Get recent movies... ")
         recentlyWatched = self.getRecentlyWatched(numberOfRecentlyPlayed)
-        self.printList(recentlyWatched)
+        self.printDict(recentlyWatched)
         
         utils.log("Get similar movies to recent movies... ")
-        similar = []
+        similar = {}
         for recentMovie in recentlyWatched:
-            temp = self.getSimilarMovies(fullList, recentMovie)[-10:]
-            similar.extend(temp)
+            utils.log("Checking movie: "+repr(recentMovie) )
+            thisDict = self.getSimilarMovies(similarDict, recentMovie)
+            thisDict = self.reduceDict(thisDict, 10)
+            for key in (thisDict):
+                thisDict[key] = (thisDict[key], recentMovie['label'])                
+            similar.update(thisDict) #add multiple entries to dict
+           
+        utils.log("Final results of getSimilarMovieListBasedOnRecentMovies:")        
+        self.printDict(similar)             
             
-        utils.log("Sort and filter results... ")
-        similarUnwatched = self.filterUnwatched(similar)        
-        self.sortList(similarUnwatched)                
-            
-        return similarUnwatched
+        return similar
     
 
     def hasMatch(self, video, similarIds):
-        for (_, watchedVideo, similarMovie) in similarIds:
-            for platformKey, platformId in similarMovie['uniqueid'].items():
-                try:    
-                    if platformKey in video['uniqueid']:                 
-                        s = video['uniqueid'][platformKey]#.replace("tt","")                    
-                        if s and s == platformId:
-                            similarMovie['plot'] = 'Because you watched:'+'\n'+'\n'+watchedVideo['label']
-                            utils.log("Found xxxx")
-                            return similarMovie
-                except Exception as e:
-                    utils.log('Exception: Has match: '+repr(e))
-                    pass
-            
-        return None   
+        try:
+            (score, similarLabel) = similarIds[utils.getTmdbID(video)]
+            video['plot'] = 'Because you watched:'+'\n'+'\n'+similarLabel+"\n"+"\nScore: "+str(score)
+            return video
+        except:
+            return None
+                                
         
     def filterSimilarVideos(self, params, videos, similarIds, keyword):
         newvideos = videos
@@ -220,6 +210,6 @@ class similarMovieSuggestions:
 if __name__ == '__main__':    
     sugg = similarMovieSuggestions('similarMoviesCache.json','similarMoviesCacheRecent.json' 'similarMoviesDB.json')    
     similarUnwatched = sugg.getSimilarMovieListBasedOnRecentMovies(30)
-    sugg.printList(similarUnwatched)
+    sugg.printDict(similarUnwatched)
     print("Finished")
 
