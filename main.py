@@ -20,10 +20,10 @@ __icon__ = __addon__.getAddonInfo('icon')
 __path__ = __addon__.getAddonInfo('path').decode('utf-8')
 
 _similarRecentWatchedStr = "-> Similar to recently watched"
-_similarRecentWatchedRebuildDatabase = "~ Rebuild Similarity Database"
+_similarRecentWatchedRebuildDatabase = "[Rebuild Similarity Database]"
 
 cachefile = __path__ + "/cachefile.txt"
-categories = ['-> List', _similarRecentWatchedStr, 'Series', 'Unwatched', 'NoDrama', 'Comedy', 'Action', 'Short', 'Long',  'Old', 'New', 'Good', 'US', 'NoUS', 'Northern', "Horror", "Bad", "German", "Crime", _similarRecentWatchedRebuildDatabase ]
+categories = ['-> List', 'Series', 'Unwatched', 'NoDrama', 'Comedy', 'Action', 'Short', 'Long',  'Old', 'New', 'Good', 'US', 'NoUS', 'Northern', "Horror", "Bad", "German", "Crime", _similarRecentWatchedRebuildDatabase, _similarRecentWatchedStr ]
 
 similarMovieSuggestion = similarMovieSuggestions.similarMovieSuggestions(__path__ + "/similarMoviesCache.json",__path__ + "/similarMoviesCacheRecent.json", __path__ +"/similarMoviesDB.json")
 
