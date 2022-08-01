@@ -281,7 +281,7 @@ def list_videos(params):
         list_item = xbmcgui.ListItem(label=video['label'], label2=str(video['rating']))
         
         list_item.setInfo( type="video", infoLabels={
-            "title": video['label'] , 
+            "title": video['label'] + " ("+cleanStr(video['year'])+") " , 
             "year": video['year'],  
             "genre": cleanStr(video.get('genre','')), 
             "country": cleanStr(video.get('country', "")),

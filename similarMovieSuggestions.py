@@ -188,7 +188,7 @@ class similarMovieSuggestions:
     def hasMatch(self, video, similarIds):
         try:
             (score, similarLabel) = similarIds[utils.getTmdbID(video)]
-            video['plot'] = 'Because you watched:'+'\n'+'\n'+similarLabel+"\n"+"\nScore: "+str(score)
+            video['plot'] = 'Because you watched:'+'\n'+similarLabel+"\n"+"Score: "+str(score)
             return video
         except:
             return None
