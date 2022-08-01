@@ -104,11 +104,11 @@ def getTmdbFromImdb(imdb):
 def getTvdbAndImdbFromTmdb(tmdb, mediatype):
     result = {} 
     try:
-        dic = getTMDB("https://api.themoviedb.org/3/"+mediatype.replace("tvshow","tv")+"/"+str(tmdb)+"?api_key="+apikey+"&append_to_response=external_ids")
-        ext = dic["external_ids"]
+        #dic = getTMDB("https://api.themoviedb.org/3/"+mediatype.replace("tvshow","tv")+"/"+str(tmdb)+"?api_key="+apikey+"&append_to_response=external_ids")
+        #ext = dic["external_ids"]
         result["tmdb"] = int(tmdb)
-        result["imdb"] = int(ext.get("imdb_id","0").replace("tt",""))
-        result["tvdb"] = int(ext.get("tvdb_id","0"))
+        #result["imdb"] = int(ext.get("imdb_id","0").replace("tt",""))
+        #result["tvdb"] = int(ext.get("tvdb_id","0"))
     except Exception as e:
         log(e)
         
@@ -117,7 +117,7 @@ def getTvdbAndImdbFromTmdb(tmdb, mediatype):
 def getTMDB(url):
     log("HTML Request: "+url)
     html = downloadBinary(url).decode('utf-8')
-    log("HTML Result: "+html)
+    log("HTML Result: "+html[:200])
     dic = json.loads(html)
     log("getTMDB: "+repr(dic)[:200]+'...')
     return dic
