@@ -266,7 +266,7 @@ def list_videos(params):
     videos = similarMovieSuggestion.filterSimilarVideos(params, videos, mySimilarRecentVideos, _similarRecentWatchedStr)
         
      
-    utils.log("List videos: "+str(videos[:30]))
+    utils.log("Listing videos "+str(len(videos)))
     # Create a list for our items.
     listing = []
     # Iterate through videos.

@@ -12,6 +12,7 @@ import io
 import json
 import utils
 
+_maxSimilarPerMovie = 10
 
 class similarMovieSuggestions:
     
@@ -73,11 +74,10 @@ class similarMovieSuggestions:
         
         pDialog.update(10, 'Getting all movies...')
         #jsonkodi.getRequestMoviesThumbs()#
-        request = '{"jsonrpc": "2.0", "method": "VideoLibrary.GetMovies", "params": { "limits": { "start" : 0, "end": 10000000 }, "properties" : ["lastplayed", "genre", "director", "writer", "cast","rating","year", "mpaa", "setid", "imdbnumber", "playcount", "tag", "country", "uniqueid"], "sort": { "order": "ascending", "method": "label", "ignorearticle": true } }, "id": "libMovies"}'
+        request = '{"jsonrpc": "2.0", "method": "VideoLibrary.GetMovies", "params": { "limits": { "start" : 0, "end": 10000000 }, "properties" : ["genre", "director", "writer", "cast","rating","year", "mpaa", "setid", "imdbnumber", "playcount", "tag", "country", "uniqueid"], "sort": { "order": "ascending", "method": "label", "ignorearticle": true } }, "id": "libMovies"}'
         #kodiList = jsonkodi.getDict(jsonkodi.getRequestMovies2(),"movies")
         kodiList = utils.getJSON(self.cachefileDBCreation, request, "movies", 30)
         result = []
-        
         
         for idx1, movie1 in enumerate(kodiList):
             (set_genres, set_directors, set_writers, set_cast, set_tags ) = self.get_sets(movie1)
@@ -99,15 +99,15 @@ class similarMovieSuggestions:
         for (score, movie1, movie2) in result:
             if utils.getTmdbID(movie1) in dic:
                 dic[utils.getTmdbID(movie1)]['similar'][utils.getTmdbID(movie2)] = score 
+                dic[utils.getTmdbID(movie1)]['similar'] = self.reduceDict(dic[utils.getTmdbID(movie1) ]['similar'], _maxSimilarPerMovie)
             else:
-                dic[utils.getTmdbID(movie1)]={'movie': movie1, 'similar' : { utils.getTmdbID(movie2)  : score } } 
+                dic[utils.getTmdbID(movie1)]={'label': movie1['label'], 'similar' : { utils.getTmdbID(movie2)  : score } } 
 
             if utils.getTmdbID(movie2) in dic:
-                dic[utils.getTmdbID(movie2) ]['similar'][utils.getTmdbID(movie1)] = score
+                dic[utils.getTmdbID(movie2)]['similar'][utils.getTmdbID(movie1)] = score
+                dic[utils.getTmdbID(movie2)]['similar'] = self.reduceDict(dic[utils.getTmdbID(movie2) ]['similar'], _maxSimilarPerMovie)
             else:
-                dic[utils.getTmdbID(movie2) ]={'movie': movie2, 'similar' : { utils.getTmdbID(movie1): score } }
-                
-                
+                dic[utils.getTmdbID(movie2)]={'label': movie2['label'], 'similar' : { utils.getTmdbID(movie1): score } }
                                 
         pDialog.close()            
         return dic
@@ -118,9 +118,6 @@ class similarMovieSuggestions:
             with io.open(self.databaseFile, 'w', encoding='utf8') as json_file:
                 data = json.dumps(lst, indent=1, ensure_ascii=False)          
                 json_file.write(unicode(data))  
-          
-          
-    
     
     def loadDatabase(self):
         # Read JSON file
@@ -142,7 +139,7 @@ class similarMovieSuggestions:
                         
     def printDict(self, dic):
         utils.log("------------BEGIN------------------")
-        for i in json.dumps(dic, indent=1).split("\n")[:100]:
+        for i in json.dumps(dic, indent=1).split("\n")[:5]:
             utils.log(i)
         utils.log("-------------END-------------------")
                 
@@ -151,9 +148,12 @@ class similarMovieSuggestions:
         return  utils.getJSON(self.cachefileRecent, request, "movies", 7)
     
     def reduceDict(self, dic, maxLen):
-        sortedList = sorted(dic.items(), key=lambda item: item[1])
-        reducedList = sortedList[-maxLen:]
-        return dict(reducedList)
+        if len<=maxLen:
+            return dic
+        else:
+            sortedList = sorted(dic.items(), key=lambda item: item[1])
+            reducedList = sortedList[-maxLen:]
+            return dict(reducedList)
            
     def getSimilarMovieListBasedOnRecentMovies(self, numberOfRecentlyPlayed = 30):
         utils.log("Load Similar Movies Database... ")

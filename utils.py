@@ -26,7 +26,7 @@ def jsonKeys2int(x):
 
 #movie helpers
 def reduceMovie(movie):
-    return dict((k, movie[k]) for k in ('label', 'lastplayed', 'movieid', "uniqueid"))
+    return dict((k, movie[k]) for k in ('label', 'uniqueid'))
 
 
 def getTmdbID(movie):
