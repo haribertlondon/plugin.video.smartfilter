@@ -148,7 +148,7 @@ class similarMovieSuggestions:
         return  utils.getJSON(self.cachefileRecent, request, "movies", 7)
     
     def reduceDict(self, dic, maxLen):
-        if len<=maxLen:
+        if len(dic)<=maxLen:
             return dic
         else:
             sortedList = sorted(list(dic.items()), key=lambda item: item[1])

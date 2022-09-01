@@ -307,8 +307,8 @@ def list_videos(params):
         
         
         list_item.setArt( {'thumb': thumbnailImage, 'poster': thumbnailImage, 'banner': thumbnailImage, 'fanart': thumbnailImage, 'icon': thumbnailImage} )                    
-        list_item.setThumbnailImage(thumbnailImage)
-        list_item.setIconImage(thumbnailImage)                
+        #list_item.setThumbnailImage(thumbnailImage)
+        #list_item.setIconImage(thumbnailImage)                
        
         try:        
             list_item.addStreamInfo("video", video['streamdetails']['video'][0] )
