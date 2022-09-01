@@ -55,7 +55,7 @@ def hasMatch(video, similarIds):
     #utils.log("Checking: "+repr(video) +  repr(similarIds))
     
     for similarId in similarIds:
-        for platformKey, platformId in similarId.items():
+        for platformKey, platformId in list(similarId.items()):
             try:
                 if int(video['uniqueid'][platformKey].replace("tt","")) == platformId:
                     utils.log("Found xxxx")

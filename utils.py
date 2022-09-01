@@ -1,8 +1,8 @@
 try:
     import xbmc
-    import urllib2
-    from urllib import urlencode
-    from urlparse import parse_qsl
+    import urllib.request, urllib.error, urllib.parse
+    from urllib.parse import urlencode
+    from urllib.parse import parse_qsl
     import urllib2 as urlrequest #@UnresolvedImport @Reimport
 except:
     import urllib.request as urlrequest #@UnusedImport
@@ -18,7 +18,7 @@ apikey = "10dc4a6c0d1a5e1bb338c026d5e7e6f1"
 def jsonKeys2int(x):
     if isinstance(x, dict):
         try:
-            return {int(k):v for k,v in x.items()}
+            return {int(k):v for k,v in list(x.items())}
         except:
             return x
     else:
@@ -67,7 +67,7 @@ def log(s, level = xbmc.LOGDEBUG):
         #do nothing, only activate for debug
         pass
     except:
-        print( repr(output) )
+        print(( repr(output) ))
         
 
         

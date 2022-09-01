@@ -1,5 +1,5 @@
 import sys
-from urlparse import parse_qsl
+from urllib.parse import parse_qsl
 import xbmc
 import xbmcaddon
 import xbmcgui
@@ -197,7 +197,7 @@ def get_movies(params, isSeries):
     
 def getInfoStr(video):
     result = ''
-    for k, v in video.items():        
+    for k, v in list(video.items()):        
         if 'movieid' != k and 'thumbnail' != k and 'label' != k:
             try:
                 result = result + str(k)
@@ -296,7 +296,7 @@ def list_videos(params):
             } )
         
         try:
-            defaultId = video.get('uniqueid',{}).keys()[0]
+            defaultId = list(video.get('uniqueid',{}).keys())[0]
         except:
             defaultId = "imdb"
         list_item.setUniqueIDs(video.get('uniqueid',{}),  defaultId)

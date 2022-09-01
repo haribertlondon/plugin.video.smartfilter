@@ -117,7 +117,7 @@ class similarMovieSuggestions:
         if self.databaseFile:
             with io.open(self.databaseFile, 'w', encoding='utf8') as json_file:
                 data = json.dumps(lst, indent=1, ensure_ascii=False)          
-                json_file.write(unicode(data))  
+                json_file.write(str(data))  
     
     def loadDatabase(self):
         # Read JSON file
@@ -151,7 +151,7 @@ class similarMovieSuggestions:
         if len<=maxLen:
             return dic
         else:
-            sortedList = sorted(dic.items(), key=lambda item: item[1])
+            sortedList = sorted(list(dic.items()), key=lambda item: item[1])
             reducedList = sortedList[-maxLen:]
             return dict(reducedList)
            

@@ -89,7 +89,7 @@ def cleanCache(filename, maxDays, fileFormat = 'pickle'):
     cache = openCacheFile(filename, fileFormat)
     newCache = {} #new dictionary
 
-    for key, value in cache.items():
+    for key, value in list(cache.items()):
         (date, _) = value
         if checkDate(date, maxDays):
             newCache[key]=value
