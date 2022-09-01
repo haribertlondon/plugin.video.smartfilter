@@ -17,7 +17,7 @@ __handle__ = int(sys.argv[1])
 __addon__ = xbmcaddon.Addon()
 __addonname__ = __addon__.getAddonInfo('name')
 __icon__ = __addon__.getAddonInfo('icon')
-__path__ = __addon__.getAddonInfo('path').decode('utf-8')
+__path__ = __addon__.getAddonInfo('path')
 
 _similarRecentWatchedStr = "-> Similar to recently watched"
 _similarRecentWatchedRebuildDatabase = "[Rebuild Similarity Database]"
