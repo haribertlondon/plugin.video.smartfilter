@@ -9,9 +9,6 @@ import random
 import time
 import os
 import utils
-import similar
-import similarMovieSuggestions
-
 
 __url__ = sys.argv[0]
 __handle__ = int(sys.argv[1])
@@ -21,29 +18,15 @@ __icon__ = __addon__.getAddonInfo('icon')
 __path__ = __addon__.getAddonInfo('path')
 
 _listStr='-> List'
-_trailerStr='-> Trailer'
-_similarRecentWatchedStr = "-> Similar to recently watched"
-_similarRecentWatchedRebuildDatabase = "[Rebuild Similarity Database]"
 
 cachefile = __path__ + "/cachefile.txt"
-categories = [_listStr,_trailerStr, 'Series', 'Unwatched', 'NoDrama', 'Comedy', 'Action', 'Short', 'Long',  'Old', 'New', 'Good', 'US', 'NoUS', 'Northern', "Horror", "Bad", "German", "Crime", _similarRecentWatchedRebuildDatabase, _similarRecentWatchedStr ]
-
-similarMovieSuggestion = similarMovieSuggestions.similarMovieSuggestions(__path__ + "/similarMoviesCache.json",__path__ + "/similarMoviesCacheRecent.json", __path__ +"/similarMoviesDB.json")
-
+categories = [_listStr, 'Trailer', "Shuffle", 'Series', 'Unwatched', 'NoDrama', 'Comedy', 'Action', 'Short', 'Long',  'Old', 'New', 'Good', 'US', 'NoUS', 'Northern', "Horror", "Bad", "German", "Crime"]
 studio_us = ["Amazon" "Syfy", "FOX" "The CW", "TBS", "SundanceTV", "Showtime", "Playhouse Disney", "Peacock", "FXX", "CBS", "AMC", "ABC (AU)", "ABC (US)", "Comedy Central (US)", "FOX (US)", "HBO", "History", "Netflix", "National Geographic (US)", "FX (US)", "SciFi", "TNT (US)", "Disney Channel", "Disney XD", "USA Network", "Science Channel", "NBC", "Adult Swim"]
 studio_br = [ "ITV", "ITV1", "ITV2", "E4", "Channel 4", "BBC", "BBC America", "BBC One", "BBC Three", "BBC Two", "Acorn TV"]
 studio_ger = ["TNT Serie" "Maxdome" "VOX", "Das Erste", "MDR", "Hulu", "Arte", "NDR", "Sat.1", "SAT.1", "Tele 5", "WDR", "ZDF", "ZDFneo", "RTL", "RTL Television", "ORF 1", "Radio Bremen", "SWR", "Sky1", "A&E", "BR"]
 studio_fr = ["France 2", "Canal+", "TF1"]
 studio_misc = ["El Rey Network", "Movistar+", "Rai 1"]
-studio_nonorthern = []
-studio_nonorthern.extend(studio_us)
-studio_nonorthern.extend(studio_br)
-studio_nonorthern.extend(studio_ger)
-studio_nonorthern.extend(studio_fr)
-studio_nonorthern.extend(studio_misc)
-
-
-
+studio_nonorthern = studio_us  + studio_br + studio_ger + studio_fr + studio_misc
 
 def list_categories(params):
     utils.log("List category: "+str(params))
@@ -60,13 +43,7 @@ def list_categories(params):
 
             if category == _listStr:
                 newAction = 'listing'
-                newCategory = params.get('category','')
-            elif category == _trailerStr:
-                newAction = 'trailer'
-                newCategory = params.get('category','')
-            elif category == _similarRecentWatchedRebuildDatabase:
-                newAction = 'executeRebuildDatabase'
-                newCategory = params.get('category','')
+                newCategory = params.get('category','')            
             else:
                 newAction = 'category'
 
@@ -87,19 +64,26 @@ def list_categories(params):
     xbmcplugin.endOfDirectory(__handle__)
 
 
-def needsSeriesview(params, isSimilarSeries):
-    if ('category' in params and 'Series' in params['category'].split(',')) or isSimilarSeries:
+def keyInParams(params, key):
+    if ('category' in params and key in params['category'].split(',')):
         return True
     else:
         return False
 
-def get_movies(params, isSeries):
+def isSeries(params):
+    return keyInParams(params, 'Series')
 
-    filter = []# '"operator": "contains", "field": "title", "value": "Star Wars"'
+def isShuffle(params):
+    return keyInParams(params, 'Shuffle')
 
+def isTrailer(params):
+    return keyInParams(params, 'Trailer')
+
+def get_movies(params):
+    filter = []
     utils.log("List get_movies params: "+str(params))
 
-    if needsSeriesview(params, isSeries):
+    if keyInParams(params, 'Series'):
         method = 'tvshows'
         properties = '["title", "thumbnail", "file", "genre", "rating", "year", "playcount", "lastplayed", "dateadded", "runtime", "imdbnumber", "uniqueid",  "studio" ]'    #"tagline",    "trailer",
     else:
@@ -109,55 +93,54 @@ def get_movies(params, isSeries):
     if 'category' in params:
         for item in params['category'].split(','):
             if 'Series' == item:
-                #method = 'tvshows'
                 #do nothing
                 pass
             elif item == 'Unwatched':
-                filter.append('{"field": "playcount", "operator": "is", "value": "0"}') #ok
+                filter.append('{"field": "playcount", "operator": "is", "value": "0"}') 
             elif item == 'NoDrama':
-                filter.append('{"field": "genre", "operator": "doesnotcontain", "value": "Drama"}') #ok
+                filter.append('{"field": "genre", "operator": "doesnotcontain", "value": "Drama"}') 
             elif item == 'Comedy':
                 if method == 'tvshows':
-                    filter.append('{"field": "genre", "operator": "contains", "value": "Com"}') #ok
+                    filter.append('{"field": "genre", "operator": "contains", "value": "Com"}') 
                 else:
-                    filter.append('{"field": "genre", "operator": "contains", "value": "Kom"}') #ok
+                    filter.append('{"field": "genre", "operator": "contains", "value": "Kom"}') 
             elif item == 'Action':
-                filter.append('{"field": "genre", "operator": "contains", "value": "Action"}') #ok
+                filter.append('{"field": "genre", "operator": "contains", "value": "Action"}') 
             elif item == 'Crime':
                 if method == 'tvshows':
                     filter.append('{"field": "genre", "operator": "contains", "value": "Crime"}')
                 else:
                     filter.append('{"field": "genre", "operator": "contains", "value": "Krimi"}')
             elif item == 'Horror':
-                filter.append('{"field": "genre", "operator": "contains", "value": "Horror"}') #ok
+                filter.append('{"field": "genre", "operator": "contains", "value": "Horror"}') 
             elif item == 'Short':
                 if method == 'tvshows':
                     filter.append('{"field": "numepisodes", "operator": "lessthan", "value": "20"}')
                 else:
-                    filter.append('{"field": "time", "operator": "lessthan", "value": "01:15:00"}') #ok
+                    filter.append('{"field": "time", "operator": "lessthan", "value": "01:15:00"}') 
             elif item == 'Long':
                 if method == 'tvshows':
                     filter.append('{"field": "numepisodes", "operator": "greaterthan", "value": "20"}')
                 else:
-                    filter.append('{"field": "time", "operator": "greaterthan", "value": "01:45:00"}') #OK
+                    filter.append('{"field": "time", "operator": "greaterthan", "value": "01:45:00"}') 
             elif item == 'Old':
-                filter.append('{"field": "year", "operator": "lessthan", "value": "1990"}') #ok
+                filter.append('{"field": "year", "operator": "lessthan", "value": "1990"}') 
             elif item == 'New':
-                filter.append('{"field": "year", "operator": "greaterthan", "value": "2010"}') #ok
+                filter.append('{"field": "year", "operator": "greaterthan", "value": "2010"}') 
             elif item == 'Good':
-                filter.append('{"field": "rating", "operator": "greaterthan", "value": "7"}') #ok
+                filter.append('{"field": "rating", "operator": "greaterthan", "value": "7"}') 
             elif item == 'Bad':
-                filter.append('{"field": "rating", "operator": "lessthan", "value": "5.6"}') #ok
+                filter.append('{"field": "rating", "operator": "lessthan", "value": "5.6"}') 
             elif item == 'US':
                 if method == 'tvshows':
-                    filter.append('{"field": "studio", "operator": "contains", "value": '+ json.dumps(studio_us)+' } ')  #OK
+                    filter.append('{"field": "studio", "operator": "contains", "value": '+ json.dumps(studio_us)+' } ')  
                 else:
-                    filter.append('{"field": "country", "operator": "contains", "value": "United States"}') #OK
+                    filter.append('{"field": "country", "operator": "contains", "value": "United States"}') 
             elif item == 'NoUS':
                 if method == 'tvshows':
-                    filter.append('{"field": "studio", "operator": "doesnotcontain", "value": '+ json.dumps(studio_us)+' } ') #OK
+                    filter.append('{"field": "studio", "operator": "doesnotcontain", "value": '+ json.dumps(studio_us)+' } ') 
                 else:
-                    filter.append('{"field": "country", "operator": "doesnotcontain", "value": "United States"}') #ok
+                    filter.append('{"field": "country", "operator": "doesnotcontain", "value": "United States"}') 
             elif item == "German":
                 if method == 'tvshows':
                     filter.append('{"field": "studio", "operator": "doesnotcontain", "value": '+ json.dumps(studio_ger)+' } ')
@@ -165,20 +148,11 @@ def get_movies(params, isSeries):
                     filter.append('{"field": "country", "operator": "contains", "value": "Germany" } ')
             elif item == 'Northern':
                 if method == 'tvshows':
-                    filter.append('{"field": "studio", "operator": "doesnotcontain", "value": '+ json.dumps(studio_nonorthern)+' } ') #OK
+                    filter.append('{"field": "studio", "operator": "doesnotcontain", "value": '+ json.dumps(studio_nonorthern)+' } ') 
                 else:
-                    filter.append('{"field": "country", "operator": "contains", "value": ["Sweden", "Norway", "Denmark", "Finland", "Iceland"] } ') #OK
-            elif item == _similarRecentWatchedStr:
-                #do nothing, will be handled afterwards
-                pass
-            elif item == _similarRecentWatchedRebuildDatabase:
-                #do nothing, will be handled afterwards
-                pass
-            elif '__SimilarTo__' in item:
-                #do nothing, will be handled afterwards
-                pass
+                    filter.append('{"field": "country", "operator": "contains", "value": ["Sweden", "Norway", "Denmark", "Finland", "Iceland"] } ')             
             else: #'Show'
-                raise Exception("Wrong category: "+str(item))
+                raise Exception("Unknown category: "+str(item))
 
     if len(filter)==0 :
         filterStr = ''
@@ -191,13 +165,10 @@ def get_movies(params, isSeries):
     request = '{"jsonrpc": "2.0", "params": {"sort": {"order": "ascending", "method": "title"}, '+filterStr+' "properties": '+properties+'}, "method": "VideoLibrary.Get'+method+'", "id": "lib'+method+'"}'
 
     utils.log("Request: "+str(request))
-
-    #request = '{"jsonrpc": "2.0", "params": {"sort": {"order": "ascending", "method": "title"}, "filter": {"operator": "contains", "field": "title", "value": "Star Wars"}, "properties": ["title", "art", "file"]}, "method": "VideoLibrary.GetMovies", "id": "libMovies"}'
+    
     lst = utils.getJSON(cachefile, request, method)
 
-    utils.log("Found movies: #"+str(len(lst)))
-    #for movie in lst[:10]:
-    #    utils.log(movie)
+    utils.log("Found movies: #"+str(len(lst)))    
 
     return lst
 
@@ -255,9 +226,9 @@ def cleanStr(lst):
 
     return result.rstrip(',')
 
-def list_videos(params, showTrailers=False, randomize=False):
+def list_videos(params):
 
-    if not randomize:
+    if not isShuffle(params):
         xbmcplugin.addSortMethod(__handle__, xbmcplugin.SORT_METHOD_VIDEO_RATING)
         xbmcplugin.addSortMethod(__handle__, xbmcplugin.SORT_METHOD_LABEL)
         xbmcplugin.addSortMethod(__handle__, xbmcplugin.SORT_METHOD_DURATION )
@@ -270,22 +241,11 @@ def list_videos(params, showTrailers=False, randomize=False):
 
     xbmc.executebuiltin("Container.SortDirection(%s)" % ("Descending"))
 
-    #get similar movies by TMDB
-    (platformIds, requestSeriesView ) = similar.getSimilarVideos(params)
-
-    #get similar movies by internal metrics/database
-    if 'category' in params and _similarRecentWatchedStr in params['category']:
-        mySimilarRecentVideos = similarMovieSuggestion.getSimilarMovieListBasedOnRecentMovies(30)
-    else:
-        mySimilarRecentVideos = []
 
     # Get the list of videos in the category.
-    videos = get_movies(params, requestSeriesView)#get_videos(category)
+    videos = get_movies(params)
 
-    videos = similar.filterSimilarVideos(params, videos, platformIds, '__SimilarTo__')
-    videos = similarMovieSuggestion.filterSimilarVideos(params, videos, mySimilarRecentVideos, _similarRecentWatchedStr)
-
-    if randomize:
+    if isShuffle(params):
         random.shuffle(videos)
 
     utils.log("Listing videos "+str(len(videos)))
@@ -294,7 +254,6 @@ def list_videos(params, showTrailers=False, randomize=False):
     # Iterate through videos.
     for video in videos:
 
-        #utils.log("List videos: "+str(video),level=xbmc.LOGWARNING)
         try:
             thumbnailImage=video['thumbnail']
         except:
@@ -314,7 +273,7 @@ def list_videos(params, showTrailers=False, randomize=False):
             "trailer": video.get('trailer'),
             "label2": str(round(video['rating'],1)),
             "dateadded": video.get('dateadded',''),
-            "mediatype": "tvshow" if needsSeriesview(params, requestSeriesView) else "movie"
+            "mediatype": "tvshow" if isSeries(params) else "movie"
             } )
 
         try:
@@ -329,20 +288,18 @@ def list_videos(params, showTrailers=False, randomize=False):
 
 
         list_item.setArt( {'thumb': thumbnailImage, 'poster': thumbnailImage, 'banner': thumbnailImage, 'fanart': thumbnailImage, 'icon': thumbnailImage} )
-        #list_item.setThumbnailImage(thumbnailImage)
-        #list_item.setIconImage(thumbnailImage)
 
         try:
             list_item.addStreamInfo("video", video['streamdetails']['video'][0] )
         except:
             list_item.addStreamInfo("video", {'duration': video['runtime']} )
 
-        if needsSeriesview(params, requestSeriesView):
+        if isSeries(params):
             url = '{0}?action=showseries&tvshowid={1}'.format(__url__, video.get('tvshowid',''))
             list_item.setProperty('IsPlayable', 'false')
             list_item.setProperty('IsFolder', 'true')
         else:
-            if showTrailers:
+            if isTrailer(params):
                 url = '{0}?action=play&video={1}'.format(__url__, video.get('trailer',''))
             else:
                 url = '{0}?action=play&video={1}'.format(__url__, video.get('file',''))
@@ -357,18 +314,13 @@ def list_videos(params, showTrailers=False, randomize=False):
     xbmcplugin.addDirectoryItems(__handle__, listing, len(listing))
     xbmcplugin.endOfDirectory(__handle__)
 
-def showseries(path):
+def show_series(path):
     utils.log("Show series:  "+str(path))
     tvshowid = path['tvshowid']
     utils.log("--------------------------- Opening series:  "+str(tvshowid))
     url = json.dumps({"jsonrpc":"2.0","method":"GUI.ActivateWindow","id":tvshowid,"params":{"window":"videos","parameters":["TvShowTitles"]}})
     html = xbmc.executeJSONRPC(url)
     utils.log(html)
-
-
-    #play_item = xbmcgui.ListItem(path=path['tvshowid'])
-    # Pass the item to the Kodi player.
-    #xbmcplugin.setResolvedUrl(__handle__, True, listitem=play_item)
 
 
 def play_video(path):
@@ -387,13 +339,9 @@ def router(paramstring):
     utils.log("Started smart filter:  "+str(__path__))
     xbmcplugin.setContent(__handle__, 'movies')
 
-
-
     params = dict(parse_qsl(paramstring))
 
-
     utils.log("Router:  "+str(paramstring))
-
 
     if 'action' not in params:
         params['action']='category'
@@ -403,10 +351,7 @@ def router(paramstring):
     # Check the parameters passed to the plugin
     if params['action'] == 'listing':
         # Display the list of videos in a provided category.
-        list_videos(params)
-    elif params['action'] == 'trailer':
-        # Play a video from a provided URL.
-        list_videos(params, showTrailers=True, randomize=True)
+        list_videos(params)    
     elif params['action'] == 'play':
         # Play a video from a provided URL.
         play_video(params)
@@ -414,12 +359,7 @@ def router(paramstring):
         # If the plugin is called from Kodi UI without any parameters, display the list of video categories
         list_categories(params)
     elif params['action'] == 'showseries':
-        showseries(params)
-    elif params['action'] == 'executeRebuildDatabase':
-        db = similarMovieSuggestion.createDatabase()
-        similarMovieSuggestion.saveDatabase(db)
-        params['action']='category'
-        params['category'] = ''
+        show_series(params)    
     else:
         raise Exception('Unknown action')
 
