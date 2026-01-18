@@ -132,6 +132,90 @@ def build_filter_for_category(item: str, method: str) -> Optional[Dict[str, Any]
     value = config[2](method) if callable(config[2]) else config[2]
     return {"field": field, "operator": operator, "value": value}
 
+def build_external_filters(params: Dict[str, str], method: str) -> List[Dict[str, Any]]:
+    filters = []
+    
+    # Genre include list
+    if 'genre' in params or 'genres' in params:
+        genre_param = params.get('genre') or params.get('genres', '')
+        if genre_param:
+            genres = [g.strip() for g in genre_param.split(',') if g.strip()]
+            if genres:
+                filters.append({"field": "genre", "operator": "contains", "value": genres})
+    
+    # Genre exclude list
+    if 'genre_exclude' in params or 'genres_exclude' in params:
+        genre_exclude_param = params.get('genre_exclude') or params.get('genres_exclude', '')
+        if genre_exclude_param:
+            genres_exclude = [g.strip() for g in genre_exclude_param.split(',') if g.strip()]
+            for genre in genres_exclude:
+                filters.append({"field": "genre", "operator": "doesnotcontain", "value": genre})
+    
+    # Year range
+    if 'year_min' in params:
+        try:
+            year_min = int(params['year_min'])
+            filters.append({"field": "year", "operator": "greaterthan", "value": str(year_min - 1)})
+        except ValueError:
+            utils.log(f"Invalid year_min value: {params['year_min']}")
+    
+    if 'year_max' in params:
+        try:
+            year_max = int(params['year_max'])
+            filters.append({"field": "year", "operator": "lessthan", "value": str(year_max + 1)})
+        except ValueError:
+            utils.log(f"Invalid year_max value: {params['year_max']}")
+    
+    # Rating range
+    if 'rating_min' in params:
+        try:
+            rating_min = float(params['rating_min'])
+            filters.append({"field": "rating", "operator": "greaterthan", "value": str(rating_min)})
+        except ValueError:
+            utils.log(f"Invalid rating_min value: {params['rating_min']}")
+    
+    if 'rating_max' in params:
+        try:
+            rating_max = float(params['rating_max'])
+            filters.append({"field": "rating", "operator": "lessthan", "value": str(rating_max)})
+        except ValueError:
+            utils.log(f"Invalid rating_max value: {params['rating_max']}")
+    
+    # Duration range
+    if 'duration_min' in params:
+        try:
+            duration_min = params['duration_min']
+            if method == METHOD_TVSHOWS:
+                # For TV shows: numepisodes (number)
+                filters.append({"field": "numepisodes", "operator": "greaterthan", "value": str(int(duration_min))})
+            else:
+                # For movies: time (HH:MM:SS format)
+                if ':' not in duration_min:
+                    # Assume seconds, convert to HH:MM:SS
+                    duration_min_sec = int(duration_min)
+                    duration_min = time.strftime('%H:%M:%S', time.gmtime(duration_min_sec))
+                filters.append({"field": "time", "operator": "greaterthan", "value": duration_min})
+        except (ValueError, AttributeError) as e:
+            utils.log(f"Invalid duration_min value: {params['duration_min']}, error: {e}")
+    
+    if 'duration_max' in params:
+        try:
+            duration_max = params['duration_max']
+            if method == METHOD_TVSHOWS:
+                # For TV shows: numepisodes (number)
+                filters.append({"field": "numepisodes", "operator": "lessthan", "value": str(int(duration_max))})
+            else:
+                # For movies: time (HH:MM:SS format)
+                if ':' not in duration_max:
+                    # Assume seconds, convert to HH:MM:SS
+                    duration_max_sec = int(duration_max)
+                    duration_max = time.strftime('%H:%M:%S', time.gmtime(duration_max_sec))
+                filters.append({"field": "time", "operator": "lessthan", "value": duration_max})
+        except (ValueError, AttributeError) as e:
+            utils.log(f"Invalid duration_max value: {params['duration_max']}, error: {e}")
+    
+    return filters
+
 
 def build_jsonrpc_request(method: str, filters: List[Dict[str, Any]], properties: List[str]) -> str:
     params = {"sort": {"order": "ascending", "method": "title"}, "properties": properties}
@@ -153,11 +237,16 @@ def get_movies(params: Dict[str, str]) -> List[Dict[str, Any]]:
         method = METHOD_MOVIES
         properties = ["title", "thumbnail", "file", "genre", "rating", "year", "playcount", "lastplayed", "dateadded", "runtime", "imdbnumber", "uniqueid", "country", "tagline", "trailer", "streamdetails"]
 
+    # Build filters from category parameters
     if 'category' in params:
         for item in params['category'].split(','):
             filter_obj = build_filter_for_category(item, method)
             if filter_obj is not None:
                 filters.append(filter_obj)
+    
+    # Build filters from external parameters (genre, year, duration, rating)
+    external_filters = build_external_filters(params, method)
+    filters.extend(external_filters)
 
     request = build_jsonrpc_request(method, filters, properties)
     utils.log(f"Request: {request}")
@@ -287,6 +376,16 @@ def play_video(path: Dict[str, str]) -> None:
 
 
 def router(paramstring: str) -> None:
+
+    # Movies from 2010-2020 with Action genre, rating 7+, excluding Drama
+    #?action=listing&genre=Action&year_min=2010&year_max=2020&rating_min=7.0&genre_exclude=Drama
+
+    # TV shows with 10-30 episodes, Comedy genre
+    #?action=listing&category=Series&genres=Comedy&duration_min=10&duration_max=30
+
+    # Combine with existing categories
+    #?action=listing&category=Unwatched,Good&year_min=2015&rating_min=8.0
+
     utils.log(f"Started smart filter: {__path__}")
     xbmcplugin.setContent(__handle__, 'movies')
 
