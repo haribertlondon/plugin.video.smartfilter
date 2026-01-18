@@ -58,6 +58,26 @@ studio_fr = ["France 2", "Canal+", "TF1"]
 studio_misc = ["El Rey Network", "Movistar+", "Rai 1"]
 studio_nonorthern = studio_us + studio_br + studio_ger + studio_fr + studio_misc
 
+# Filter configuration: category -> (field, operator, value_getter)
+# value_getter can be: string, callable(method), or dict with method keys
+FILTER_CONFIG = {
+    CATEGORY_UNWATCHED: ("playcount", "is", "0"),
+    CATEGORY_NODRAMA: ("genre", "doesnotcontain", "Drama"),
+    CATEGORY_COMEDY: ("genre", "contains", lambda m: "Com" if m == METHOD_TVSHOWS else "Kom"),
+    CATEGORY_ACTION: ("genre", "contains", "Action"),
+    CATEGORY_CRIME: ("genre", "contains", lambda m: "Crime" if m == METHOD_TVSHOWS else "Krimi"),
+    CATEGORY_HORROR: ("genre", "contains", "Horror"),
+    CATEGORY_SHORT: (lambda m: "numepisodes" if m == METHOD_TVSHOWS else "time", "lessthan", lambda m: "20" if m == METHOD_TVSHOWS else "01:15:00"),
+    CATEGORY_LONG: (lambda m: "numepisodes" if m == METHOD_TVSHOWS else "time", "greaterthan", lambda m: "20" if m == METHOD_TVSHOWS else "01:45:00"),
+    CATEGORY_OLD: ("year", "lessthan", "1990"),
+    CATEGORY_NEW: ("year", "greaterthan", "2010"),
+    CATEGORY_GOOD: ("rating", "greaterthan", "7"),
+    CATEGORY_BAD: ("rating", "lessthan", "5.6"),
+    CATEGORY_US: (lambda m: "studio" if m == METHOD_TVSHOWS else "country", "contains", lambda m: studio_us if m == METHOD_TVSHOWS else "United States"),
+    CATEGORY_NOUS: (lambda m: "studio" if m == METHOD_TVSHOWS else "country", "doesnotcontain", lambda m: studio_us if m == METHOD_TVSHOWS else "United States"),
+    CATEGORY_GERMAN: (lambda m: "studio" if m == METHOD_TVSHOWS else "country", lambda m: "doesnotcontain" if m == METHOD_TVSHOWS else "contains", lambda m: studio_ger if m == METHOD_TVSHOWS else "Germany"),
+    CATEGORY_NORTHERN: (lambda m: "studio" if m == METHOD_TVSHOWS else "country", lambda m: "doesnotcontain" if m == METHOD_TVSHOWS else "contains", lambda m: studio_nonorthern if m == METHOD_TVSHOWS else ["Sweden", "Norway", "Denmark", "Finland", "Iceland"]),
+}
 
 def list_categories(params: Dict[str, str]) -> None:
     utils.log(f"List category: {params}")
@@ -104,60 +124,13 @@ def is_trailer(params: Dict[str, str]) -> bool:
 def build_filter_for_category(item: str, method: str) -> Optional[Dict[str, Any]]:
     if item == CATEGORY_SERIES:
         return None
-    elif item == CATEGORY_UNWATCHED:
-        return {"field": "playcount", "operator": "is", "value": "0"}
-    elif item == CATEGORY_NODRAMA:
-        return {"field": "genre", "operator": "doesnotcontain", "value": "Drama"}
-    elif item == CATEGORY_COMEDY:
-        genre_value = "Com" if method == METHOD_TVSHOWS else "Kom"
-        return {"field": "genre", "operator": "contains", "value": genre_value}
-    elif item == CATEGORY_ACTION:
-        return {"field": "genre", "operator": "contains", "value": "Action"}
-    elif item == CATEGORY_CRIME:
-        genre_value = "Crime" if method == METHOD_TVSHOWS else "Krimi"
-        return {"field": "genre", "operator": "contains", "value": genre_value}
-    elif item == CATEGORY_HORROR:
-        return {"field": "genre", "operator": "contains", "value": "Horror"}
-    elif item == CATEGORY_SHORT:
-        if method == METHOD_TVSHOWS:
-            return {"field": "numepisodes", "operator": "lessthan", "value": "20"}
-        else:
-            return {"field": "time", "operator": "lessthan", "value": "01:15:00"}
-    elif item == CATEGORY_LONG:
-        if method == METHOD_TVSHOWS:
-            return {"field": "numepisodes", "operator": "greaterthan", "value": "20"}
-        else:
-            return {"field": "time", "operator": "greaterthan", "value": "01:45:00"}
-    elif item == CATEGORY_OLD:
-        return {"field": "year", "operator": "lessthan", "value": "1990"}
-    elif item == CATEGORY_NEW:
-        return {"field": "year", "operator": "greaterthan", "value": "2010"}
-    elif item == CATEGORY_GOOD:
-        return {"field": "rating", "operator": "greaterthan", "value": "7"}
-    elif item == CATEGORY_BAD:
-        return {"field": "rating", "operator": "lessthan", "value": "5.6"}
-    elif item == CATEGORY_US:
-        if method == METHOD_TVSHOWS:
-            return {"field": "studio", "operator": "contains", "value": studio_us}
-        else:
-            return {"field": "country", "operator": "contains", "value": "United States"}
-    elif item == CATEGORY_NOUS:
-        if method == METHOD_TVSHOWS:
-            return {"field": "studio", "operator": "doesnotcontain", "value": studio_us}
-        else:
-            return {"field": "country", "operator": "doesnotcontain", "value": "United States"}
-    elif item == CATEGORY_GERMAN:
-        if method == METHOD_TVSHOWS:
-            return {"field": "studio", "operator": "doesnotcontain", "value": studio_ger}
-        else:
-            return {"field": "country", "operator": "contains", "value": "Germany"}
-    elif item == CATEGORY_NORTHERN:
-        if method == METHOD_TVSHOWS:
-            return {"field": "studio", "operator": "doesnotcontain", "value": studio_nonorthern}
-        else:
-            return {"field": "country", "operator": "contains", "value": ["Sweden", "Norway", "Denmark", "Finland", "Iceland"]}
-    else:
+    if item not in FILTER_CONFIG:
         raise ValueError(f"Unknown category: {item}")
+    config = FILTER_CONFIG[item]
+    field = config[0](method) if callable(config[0]) else config[0]
+    operator = config[1](method) if callable(config[1]) else config[1]
+    value = config[2](method) if callable(config[2]) else config[2]
+    return {"field": field, "operator": operator, "value": value}
 
 
 def build_jsonrpc_request(method: str, filters: List[Dict[str, Any]], properties: List[str]) -> str:
