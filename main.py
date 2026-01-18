@@ -21,9 +21,9 @@ _listStr='-> List'
 
 cachefile = __path__ + "/cachefile.txt"
 categories = [_listStr, 'Trailer', "Shuffle", 'Series', 'Unwatched', 'NoDrama', 'Comedy', 'Action', 'Short', 'Long',  'Old', 'New', 'Good', 'US', 'NoUS', 'Northern', "Horror", "Bad", "German", "Crime"]
-studio_us = ["Amazon" "Syfy", "FOX" "The CW", "TBS", "SundanceTV", "Showtime", "Playhouse Disney", "Peacock", "FXX", "CBS", "AMC", "ABC (AU)", "ABC (US)", "Comedy Central (US)", "FOX (US)", "HBO", "History", "Netflix", "National Geographic (US)", "FX (US)", "SciFi", "TNT (US)", "Disney Channel", "Disney XD", "USA Network", "Science Channel", "NBC", "Adult Swim"]
+studio_us = ["Amazon", "Syfy", "FOX" "The CW", "TBS", "SundanceTV", "Showtime", "Playhouse Disney", "Peacock", "FXX", "CBS", "AMC", "ABC (AU)", "ABC (US)", "Comedy Central (US)", "FOX (US)", "HBO", "History", "Netflix", "National Geographic (US)", "FX (US)", "SciFi", "TNT (US)", "Disney Channel", "Disney XD", "USA Network", "Science Channel", "NBC", "Adult Swim"]
 studio_br = [ "ITV", "ITV1", "ITV2", "E4", "Channel 4", "BBC", "BBC America", "BBC One", "BBC Three", "BBC Two", "Acorn TV"]
-studio_ger = ["TNT Serie" "Maxdome" "VOX", "Das Erste", "MDR", "Hulu", "Arte", "NDR", "Sat.1", "SAT.1", "Tele 5", "WDR", "ZDF", "ZDFneo", "RTL", "RTL Television", "ORF 1", "Radio Bremen", "SWR", "Sky1", "A&E", "BR"]
+studio_ger = ["TNT Serie", "Maxdome", "VOX", "Das Erste", "MDR", "Hulu", "Arte", "NDR", "Sat.1", "SAT.1", "Tele 5", "WDR", "ZDF", "ZDFneo", "RTL", "RTL Television", "ORF 1", "Radio Bremen", "SWR", "Sky1", "A&E", "BR"]
 studio_fr = ["France 2", "Canal+", "TF1"]
 studio_misc = ["El Rey Network", "Movistar+", "Rai 1"]
 studio_nonorthern = studio_us  + studio_br + studio_ger + studio_fr + studio_misc
@@ -235,11 +235,12 @@ def list_videos(params):
         xbmcplugin.addSortMethod(__handle__, xbmcplugin.SORT_METHOD_DATEADDED )
         xbmcplugin.addSortMethod(__handle__, xbmcplugin.SORT_METHOD_GENRE )
         xbmcplugin.addSortMethod(__handle__, xbmcplugin.SORT_METHOD_PLAYCOUNT )
+        xbmc.executebuiltin("Container.SortDirection(%s)" % ("Descending"))
     else:
         xbmcplugin.addSortMethod(__handle__, xbmcplugin.SORT_METHOD_UNSORTED)
         xbmcplugin.addSortMethod(__handle__, xbmcplugin.SORT_METHOD_NONE)
 
-    xbmc.executebuiltin("Container.SortDirection(%s)" % ("Descending"))
+    
 
 
     # Get the list of videos in the category.
@@ -332,7 +333,11 @@ def play_video(path):
 
     play_item = xbmcgui.ListItem(path=filename)
     # Pass the item to the Kodi player.
-    xbmcplugin.setResolvedUrl(__handle__, True, listitem=play_item)
+    try:
+        xbmcplugin.setResolvedUrl(__handle__, True, listitem=play_item)
+    except:
+        utils.log("Error playing video: "+str(filename))
+        xbmc.Player().play(filename)
 
 
 def router(paramstring):
