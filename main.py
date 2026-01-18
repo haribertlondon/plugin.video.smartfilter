@@ -122,7 +122,7 @@ def is_trailer(params: Dict[str, str]) -> bool:
     return key_in_params(params, CATEGORY_TRAILER)
 
 def build_filter_for_category(item: str, method: str) -> Optional[Dict[str, Any]]:
-    if item == CATEGORY_SERIES:
+    if item in [CATEGORY_SERIES, CATEGORY_SHUFFLE, CATEGORY_TRAILER]:
         return None
     if item not in FILTER_CONFIG:
         raise ValueError(f"Unknown category: {item}")
