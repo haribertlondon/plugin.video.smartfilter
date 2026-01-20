@@ -71,7 +71,7 @@ FILTER_CONFIG = {
     CATEGORY_LONG: (lambda m: "numepisodes" if m == METHOD_TVSHOWS else "time", "greaterthan", lambda m: "20" if m == METHOD_TVSHOWS else "01:45:00"),
     CATEGORY_OLD: ("year", "lessthan", "1990"),
     CATEGORY_NEW: ("year", "greaterthan", "2010"),
-    CATEGORY_GOOD: ("rating", "greaterthan", "7"),
+    CATEGORY_GOOD: ("rating", "greaterthan", "6.2"),
     CATEGORY_BAD: ("rating", "lessthan", "5.6"),
     CATEGORY_US: (lambda m: "studio" if m == METHOD_TVSHOWS else "country", "contains", lambda m: studio_us if m == METHOD_TVSHOWS else "United States"),
     CATEGORY_NOUS: (lambda m: "studio" if m == METHOD_TVSHOWS else "country", "doesnotcontain", lambda m: studio_us if m == METHOD_TVSHOWS else "United States"),
@@ -82,7 +82,7 @@ FILTER_CONFIG = {
 def list_categories(params: Dict[str, str]) -> None:
     utils.log(f"List category: {params}")
     listing = []
-    
+
     for category in categories:
         if ("category" not in params) or (category not in params['category']) or (category == categories[0]):
             list_item = xbmcgui.ListItem(label=category)
@@ -101,7 +101,7 @@ def list_categories(params: Dict[str, str]) -> None:
             url = f"{__url__}?action={new_action}&category={new_category}"
             is_folder = True
             listing.append((url, list_item, is_folder))
-    
+
     xbmcplugin.addDirectoryItems(__handle__, listing, len(listing))
     xbmcplugin.endOfDirectory(__handle__)
 
@@ -134,7 +134,7 @@ def build_filter_for_category(item: str, method: str) -> Optional[Dict[str, Any]
 
 def build_external_filters(params: Dict[str, str], method: str) -> List[Dict[str, Any]]:
     filters = []
-    
+
     # Genre include list
     if 'genre' in params or 'genres' in params:
         genre_param = params.get('genre') or params.get('genres', '')
@@ -142,7 +142,7 @@ def build_external_filters(params: Dict[str, str], method: str) -> List[Dict[str
             genres = [g.strip() for g in genre_param.split(',') if g.strip()]
             if genres:
                 filters.append({"field": "genre", "operator": "contains", "value": genres})
-    
+
     # Genre exclude list
     if 'genre_exclude' in params or 'genres_exclude' in params:
         genre_exclude_param = params.get('genre_exclude') or params.get('genres_exclude', '')
@@ -150,7 +150,7 @@ def build_external_filters(params: Dict[str, str], method: str) -> List[Dict[str
             genres_exclude = [g.strip() for g in genre_exclude_param.split(',') if g.strip()]
             for genre in genres_exclude:
                 filters.append({"field": "genre", "operator": "doesnotcontain", "value": genre})
-    
+
     # Year range
     if 'year_min' in params:
         try:
@@ -158,14 +158,14 @@ def build_external_filters(params: Dict[str, str], method: str) -> List[Dict[str
             filters.append({"field": "year", "operator": "greaterthan", "value": str(year_min - 1)})
         except ValueError:
             utils.log(f"Invalid year_min value: {params['year_min']}")
-    
+
     if 'year_max' in params:
         try:
             year_max = int(params['year_max'])
             filters.append({"field": "year", "operator": "lessthan", "value": str(year_max + 1)})
         except ValueError:
             utils.log(f"Invalid year_max value: {params['year_max']}")
-    
+
     # Rating range
     if 'rating_min' in params:
         try:
@@ -173,14 +173,14 @@ def build_external_filters(params: Dict[str, str], method: str) -> List[Dict[str
             filters.append({"field": "rating", "operator": "greaterthan", "value": str(rating_min)})
         except ValueError:
             utils.log(f"Invalid rating_min value: {params['rating_min']}")
-    
+
     if 'rating_max' in params:
         try:
             rating_max = float(params['rating_max'])
             filters.append({"field": "rating", "operator": "lessthan", "value": str(rating_max)})
         except ValueError:
             utils.log(f"Invalid rating_max value: {params['rating_max']}")
-    
+
     # Duration range
     if 'duration_min' in params:
         try:
@@ -197,7 +197,7 @@ def build_external_filters(params: Dict[str, str], method: str) -> List[Dict[str
                 filters.append({"field": "time", "operator": "greaterthan", "value": duration_min})
         except (ValueError, AttributeError) as e:
             utils.log(f"Invalid duration_min value: {params['duration_min']}, error: {e}")
-    
+
     if 'duration_max' in params:
         try:
             duration_max = params['duration_max']
@@ -213,7 +213,7 @@ def build_external_filters(params: Dict[str, str], method: str) -> List[Dict[str
                 filters.append({"field": "time", "operator": "lessthan", "value": duration_max})
         except (ValueError, AttributeError) as e:
             utils.log(f"Invalid duration_max value: {params['duration_max']}, error: {e}")
-    
+
     return filters
 
 
@@ -243,17 +243,17 @@ def get_movies(params: Dict[str, str]) -> List[Dict[str, Any]]:
             filter_obj = build_filter_for_category(item, method)
             if filter_obj is not None:
                 filters.append(filter_obj)
-    
+
     # Build filters from external parameters (genre, year, duration, rating)
     external_filters = build_external_filters(params, method)
     filters.extend(external_filters)
 
     request = build_jsonrpc_request(method, filters, properties)
     utils.log(f"Request: {request}")
-    
+
     lst = utils.getJSON(cachefile, request, method)
     utils.log(f"Found movies: #{len(lst)}")
-    
+
     return lst
 
 def clean_str(lst: Any) -> str:
@@ -261,7 +261,7 @@ def clean_str(lst: Any) -> str:
         vlist = lst
     else:
         vlist = [lst]
-    
+
     result_parts = []
     for item in vlist:
         try:
@@ -269,9 +269,9 @@ def clean_str(lst: Any) -> str:
         except (UnicodeEncodeError, AttributeError) as e:
             utils.log(f"Error encoding item {item}: {e}")
             temp = repr(item)
-        
+
         result_parts.append(temp)
-    
+
     return ','.join(result_parts)
 
 def list_videos(params: Dict[str, str]) -> None:
@@ -294,8 +294,12 @@ def list_videos(params: Dict[str, str]) -> None:
 
     utils.log(f"Listing videos {len(videos)}")
     listing = []
-    
+
     for video in videos:
+
+        if is_trailer(params) and not video.get('trailer', ''):
+            continue
+
         try:
             thumbnail_image = video['thumbnail']
         except (KeyError, TypeError):
@@ -303,28 +307,58 @@ def list_videos(params: Dict[str, str]) -> None:
 
         list_item = xbmcgui.ListItem(label=video['label'], label2=str(video['rating']))
 
-        plot_text = clean_str(video.get('plot')) if video.get('plot') else "-Deactivated-"
-        tagline_text = f"{clean_str(video.get('genre', '')).replace(',', ', ')}\n\n{clean_str(video.get('tagline'))}"
-        list_item.setInfo(type="video", infoLabels={"title": f"{video['label']} ({clean_str(video['year'])}) ", "year": video['year'], "genre": clean_str(video.get('genre', '')), "country": clean_str(video.get('country', "")), 'plot': plot_text, "tagline": tagline_text, 'rating': video['rating'], "playcount": video['playcount'], "trailer": video.get('trailer'), "label2": str(round(video['rating'], 1)), "dateadded": video.get('dateadded', ''), "mediatype": "tvshow" if is_series(params) else "movie"})
+        video_info_tag = list_item.getVideoInfoTag()
 
+        # Set basic info using InfoTagVideo setters
+        video_info_tag.setTitle(f"{video['label']} ({clean_str(video['year'])}) ")
+        video_info_tag.setYear(video['year'])
+        video_info_tag.setRating(video['rating'])
+        video_info_tag.setPlaycount(video['playcount'])
+        video_info_tag.setMediaType("tvshow" if is_series(params) else "movie")
+
+        # Set genre (can be list or string)
+        genre_str = clean_str(video.get('genre', ''))
+        if genre_str:
+            genres = [g.strip() for g in genre_str.split(',') if g.strip()]
+            video_info_tag.setGenres(genres)
+
+        # Set country
+        country_str = clean_str(video.get('country', ""))
+        if country_str:
+            countries = [c.strip() for c in country_str.split(',') if c.strip()]
+            video_info_tag.setCountries(countries)
+
+        # Set plot and tagline
+        plot_text = clean_str(video.get('plot')) if video.get('plot') else "-Deactivated-"
+        video_info_tag.setPlot(plot_text)
+        tagline_text = f"{clean_str(video.get('genre', '')).replace(',', ', ')}\n\n{clean_str(video.get('tagline'))}"
+        video_info_tag.setTagLine(tagline_text)
+
+        # Set trailer
+        if video.get('trailer'):
+            video_info_tag.setTrailer(video.get('trailer'))
+
+        # Set date added
+        if video.get('dateadded'):
+            video_info_tag.setDateAdded(video.get('dateadded'))
+
+        # Set unique IDs
         unique_ids = video.get('uniqueid', {})
         if unique_ids:
             default_id = list(unique_ids.keys())[0]
         else:
             default_id = "imdb"
-        
-        list_item.setUniqueIDs(unique_ids, default_id)
+        video_info_tag.setUniqueIDs(unique_ids, default_id)
+
+        # Set resume point (total time)
+        if video.get('runtime'):
+            video_info_tag.setDuration(int(video['runtime']))
+
         list_item.setProperty('fanart_image', thumbnail_image)
-        list_item.setProperty("totaltime", str(video['runtime']))
         list_item.setProperty("dbid", str(video.get('movieid')))
         list_item.setProperty("imdbnumber", str(video.get('imdbnumber')))
 
         list_item.setArt({'thumb': thumbnail_image, 'poster': thumbnail_image, 'banner': thumbnail_image, 'fanart': thumbnail_image, 'icon': thumbnail_image})
-
-        try:
-            list_item.addStreamInfo("video", video['streamdetails']['video'][0])
-        except (KeyError, IndexError, TypeError):
-            list_item.addStreamInfo("video", {'duration': video['runtime']})
 
         if is_series(params):
             url = f"{__url__}?action={ACTION_SHOWSERIES}&tvshowid={video.get('tvshowid', '')}"
@@ -337,7 +371,7 @@ def list_videos(params: Dict[str, str]) -> None:
                 url = f"{__url__}?action={ACTION_PLAY}&video={video.get('file', '')}"
             list_item.setProperty('IsPlayable', 'true')
             list_item.setProperty('IsFolder', 'false')
-        
+
         is_folder = False
         listing.append((url, list_item, is_folder))
 
@@ -361,7 +395,7 @@ def play_video(path: Dict[str, str]) -> None:
     try:
         filename = path['video']
         utils.log(f"Clean Item: {filename}<>{repr(filename)}")
-        
+
         play_item = xbmcgui.ListItem(path=filename)
         try:
             xbmcplugin.setResolvedUrl(__handle__, True, listitem=play_item)
